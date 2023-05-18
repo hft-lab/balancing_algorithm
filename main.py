@@ -16,7 +16,8 @@ from core.enums import PositionSideEnum
 
 
 class Balancing:
-    __slots__ = 'clients', 'positions', 'total_position', 'disbalance_coin', 'disbalance_usd', 'side', 'mq', 'session'
+    __slots__ = 'clients', 'positions', 'total_position', 'disbalance_coin', 'disbalance_usd', 'side', 'mq', 'session', \
+                'open_orders'
 
     def __init__(self):
         self.mq = None
@@ -28,7 +29,6 @@ class Balancing:
             # OkxClient(Config.OKX, Config.LEVERAGE),
             # KrakenClient(Config.KRAKEN, Config.LEVERAGE)
         ]
-
         self.__set_default()
 
         for client in self.clients:
@@ -42,6 +42,7 @@ class Balancing:
             await self.__setup_mq(loop)
 
             while True:
+                await self.__close_all_open_orders()
                 await self.__get_positions()
                 await self.__check_disbalance()
                 await self.__balancing_positions(session)
@@ -58,6 +59,7 @@ class Balancing:
 
     def __set_default(self) -> None:
         self.positions = {}
+        self.open_orders = {}
         self.total_position = 0
         self.disbalance_coin = 0
         self.disbalance_usd = 0
@@ -91,13 +93,18 @@ class Balancing:
         print(f'{self.disbalance_usd=}')
         print(f'{self.side=}')
 
+    async def __close_all_open_orders(self):
+        for client in self.clients:
+            client.cancel_all_orders()
+
+
     async def __balancing_positions(self, session) -> None:
         print('START CHECK AND BALANCING')
         tasks = []
 
         if self.disbalance_usd > Config.MIN_DISBALANCE:
             for client in self.clients:
-                price = client.get_orderbook().get(client.symbol, {}).get('bids' if self.side == 'LONG' else 'asks')[0][0] # noqa
+                price = client.get_orderbook().get(client.symbol, {}).get('bids' if self.side == 'LONG' else 'asks')[0][0]  # noqa
                 tasks.append(client.create_order(
                     amount=self.disbalance_coin / len(self.clients),
                     side=self.side,

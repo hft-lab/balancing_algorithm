@@ -1,0 +1,14 @@
+FROM python:3.8
+
+RUN mkdir balancing_algorithm
+WORKDIR ./balancing_algorithm
+COPY . .
+
+RUN pip install --upgrade pip
+RUN pip install bitmex
+RUN pip3 install dydx_v3_python
+RUN pip install python-dotenv
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+ENV PYTHONPATH="/:$PYTHONPATH"
+ENV TZ=UTC
