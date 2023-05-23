@@ -5,30 +5,16 @@ from pprint import pprint
 import aiohttp
 from aio_pika import connect_robust
 
-from clients.apollox import ApolloxClient
-from clients.binance import BinanceClient
-from clients.bitmex import BitmexClient
-from clients.dydx import DydxClient
-from clients.kraken import KrakenClient
-from clients.okx import OkxClient
 from config import Config
+from core.base_task import BaseTask
 from core.enums import PositionSideEnum
 
 
-class Balancing:
+class Balancing(BaseTask):
     __slots__ = 'clients', 'positions', 'total_position', 'disbalance_coin', 'disbalance_usd', 'side', 'mq', 'session', \
                 'open_orders'
 
     def __init__(self):
-        self.mq = None
-        self.clients = [
-            # BitmexClient(Config.BITMEX, Config.LEVERAGE),
-            DydxClient(Config.DYDX, Config.LEVERAGE),
-            BinanceClient(Config.BINANCE, Config.LEVERAGE),
-            # ApolloxClient(Config.APOLLOX, Config.LEVERAGE),
-            # OkxClient(Config.OKX, Config.LEVERAGE),
-            # KrakenClient(Config.KRAKEN, Config.LEVERAGE)
-        ]
         self.__set_default()
 
         for client in self.clients:

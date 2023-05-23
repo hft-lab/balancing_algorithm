@@ -187,10 +187,6 @@ class BinanceClient(BaseClient):
 
         return hmac.new(self.__secret_key.encode(), msg=query.encode(), digestmod=hashlib.sha256).hexdigest()
 
-
-    def get_balance(self):
-        return self.balance['total']
-
     def _balance(self) -> None:
         while True:
             self.balance['total'], self.balance['avl_balance'] = self._get_balance()
@@ -242,13 +238,13 @@ class BinanceClient(BaseClient):
 
     async def __create_order(self, amount: float, price: float, side: str, session: aiohttp.ClientSession,
                              expire=5000, client_ID=None) -> dict:
-        url_path = "https://fapi.binance.com/fapi/v1/order?"
+        url_path = "/fapi/v1/order?"
         query_string = f"timestamp={int(time.time() * 1000)}&symbol={self.symbol}&side={side}&type=LIMIT&" \
                        f"price={float(round(float(round(price / self.tick_size) * self.tick_size), self.price_precision))}" \
                        f"&quantity={float(round(float(round(amount / self.step_size) * self.step_size), self.quantity_precision))}&timeInForce=GTC"
         query_string += f'&signature={self._create_signature(query_string)}'
 
-        async with session.post(url=url_path + query_string, headers=self.headers) as resp:
+        async with session.post(url=self.BASE_URL + url_path + "?" + query_string, headers=self.headers) as resp:
             res = await resp.json()
             print(f'BINANCE RESPONSE: {res}')
             timestamp = 0000000000000
@@ -268,10 +264,10 @@ class BinanceClient(BaseClient):
             }
 
     def __cancel_open_orders(self) -> dict:
-        url_path = "/fapi/v1/allOpenOrders"
+        url_path = "/fapi/v1/order"
         payload = {
             "timestamp": int(time.time() * 1000),
-            'symbol': self.symbol
+            "symbol": self.symbol
         }
 
         query_string = self._prepare_query(payload)
@@ -279,6 +275,23 @@ class BinanceClient(BaseClient):
         query_string = self._prepare_query(payload)
         res = requests.delete(url=self.BASE_URL + url_path + '?' + query_string, headers=self.headers).json()
         return res
+
+
+    async def get_order_by_id(self, order_id: str, session: aiohttp.ClientSession):
+        url_path = "/fapi/v1/allOpenOrders"
+        payload = {
+            "timestamp": int(time.time() * 1000),
+            "symbol": self.symbol,
+            "orderId": order_id
+        }
+
+        query_string = self._prepare_query(payload)
+        payload["signature"] = self._create_signature(query_string)
+        query_string = self._prepare_query(payload)
+
+        async with session.post(url=self.BASE_URL + url_path + "?" + query_string, headers=self.headers) as resp:
+            return await resp.json()
+
 
     def _get_listen_key(self) -> None:
         response = requests.post(

@@ -13,6 +13,14 @@ class Config:
     TELEGRAM_CHAT_ID = getenv('TELEGRAM_CHAT_ID')
     TELEGRAM_TOKEN = getenv('TELEGRAM_TOKEN')
 
+    POSTGRES = {
+        'database': getenv('POSTGRES_NAME'),
+        'user': getenv('POSTGRES_USER'),
+        'password': getenv('POSTGRES_PASSWORD'),
+        'host': getenv('POSTGRES_HOST'),
+        'port': getenv('POSTGRES_PORT')
+    }
+
     RABBIT = {
         "host": getenv("RABBIT_HOST"),
         "port": getenv("RABBIT_PORT", 5672),
