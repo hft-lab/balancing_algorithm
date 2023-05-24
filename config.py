@@ -13,14 +13,6 @@ class Config:
     TELEGRAM_CHAT_ID = getenv('TELEGRAM_CHAT_ID')
     TELEGRAM_TOKEN = getenv('TELEGRAM_TOKEN')
 
-    POSTGRES = {
-        'database': getenv('POSTGRES_NAME'),
-        'user': getenv('POSTGRES_USER'),
-        'password': getenv('POSTGRES_PASSWORD'),
-        'host': getenv('POSTGRES_HOST'),
-        'port': getenv('POSTGRES_PORT')
-    }
-
     RABBIT = {
         "host": getenv("RABBIT_HOST"),
         "port": getenv("RABBIT_PORT", 5672),
@@ -76,4 +68,29 @@ class Config:
         "secret_key": getenv("APOLLOX_SECRET_API"),
         "symbol": getenv("APOLLOX_SYMBOL"),
         "apollox_shift": int(getenv("APOLLOX_SHIFT"))
+    }
+
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'simple': {
+                'format': '[%(asctime)s][%(threadName)s] %(funcName)s: %(message)s'
+            },
+        },
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+                'level': 'DEBUG',
+                'formatter': 'simple',
+                'stream': 'ext://sys.stdout'
+            },
+        },
+        'loggers': {
+            '': {
+                'handlers': ['console'],
+                'level': 'DEBUG',
+                'propagate': False
+            },
+        }
     }

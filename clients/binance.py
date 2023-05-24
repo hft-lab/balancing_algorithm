@@ -203,6 +203,7 @@ class BinanceClient(BaseClient):
         res = requests.get(url=self.BASE_URL + url_path + '?' + query_string, headers=self.headers).json()
 
         if isinstance(res, dict):
+            print(res)
             for s in res.get('positions', []):
                 if float(s['positionAmt']):
                     self.positions.update({s['symbol']: {
@@ -220,7 +221,10 @@ class BinanceClient(BaseClient):
 
     def _get_balance(self) -> [float, float]:
         url_path = "/fapi/v2/balance"
-        payload = {"timestamp": int(time.time() * 1000)}
+        payload = {
+            "timestamp": int(time.time() * 1000),
+            "recvWindow": int((time.time() + 2) * 1000)
+        }
 
         query_string = self._prepare_query(payload)
         payload["signature"] = self._create_signature(query_string)
@@ -238,12 +242,13 @@ class BinanceClient(BaseClient):
 
     async def __create_order(self, amount: float, price: float, side: str, session: aiohttp.ClientSession,
                              expire=5000, client_ID=None) -> dict:
-        url_path = "/fapi/v1/order?"
+        url_path = "/fapi/v1/order"
         query_string = f"timestamp={int(time.time() * 1000)}&symbol={self.symbol}&side={side}&type=LIMIT&" \
                        f"price={float(round(float(round(price / self.tick_size) * self.tick_size), self.price_precision))}" \
-                       f"&quantity={float(round(float(round(amount / self.step_size) * self.step_size), self.quantity_precision))}&timeInForce=GTC"
+                       f"&quantity={float(round(float(round(amount / self.step_size) * self.step_size), self.quantity_precision))}" \
+                       f"&timeInForce=GTC&recvWindow={int((time.time() + 2) * 1000)}"
         query_string += f'&signature={self._create_signature(query_string)}'
-
+        print(f'BINANCE: {query_string}')
         async with session.post(url=self.BASE_URL + url_path + "?" + query_string, headers=self.headers) as resp:
             res = await resp.json()
             print(f'BINANCE RESPONSE: {res}')
@@ -275,7 +280,6 @@ class BinanceClient(BaseClient):
         query_string = self._prepare_query(payload)
         res = requests.delete(url=self.BASE_URL + url_path + '?' + query_string, headers=self.headers).json()
         return res
-
 
     async def get_order_by_id(self, order_id: str, session: aiohttp.ClientSession):
         url_path = "/fapi/v1/allOpenOrders"

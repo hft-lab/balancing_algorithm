@@ -89,7 +89,7 @@ class DydxClient(BaseClient):
                 }})
 
     def cancel_all_orders(self, orderID=None):
-        self.client.private.cancel_order(order_id=orderID)
+        self.client.private.cancel_active_orders(market=self.symbol)
 
     def get_real_balance(self):
         balance = None
@@ -343,11 +343,13 @@ class DydxClient(BaseClient):
     @staticmethod
     def _append_format_pos(position):
         position.update({'timestamp': time.time(),
+                         'entry_price': float(position['entryPrice']),
                          'amount': float(position['size']),
                          'amount_usd': float(position['size']) * float(position['entryPrice'])})
         return position
 
     def _update_positions(self, positions):
+        print(f'DYDX UPDATE POSITIONS: {positions}')
         for position in positions:
             position = self._append_format_pos(position)
             self.positions.update({position['market']: position})
@@ -514,6 +516,7 @@ class DydxClient(BaseClient):
                         self._channel_orderbook_update(obj)
                 elif obj['channel'] == 'v3_accounts':
                     if obj['contents'].get('positions'):
+                        print('> ' * 50)
                         if len(obj['contents']['positions']):
                             self._update_positions(obj['contents']['positions'])
                     if obj['contents'].get('orders'):
