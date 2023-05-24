@@ -110,7 +110,7 @@ class BinanceClient(BaseClient):
         while True:
             try:
                 loop.run_until_complete(self._run_loop(type))
-            except Exception:
+            except Exception:  # noqa
                 traceback.print_exc()
 
     async def _run_loop(self, type) -> None:
@@ -291,7 +291,6 @@ class BinanceClient(BaseClient):
 
         async with session.post(url=self.BASE_URL + url_path + "?" + query_string, headers=self.headers) as resp:
             return await resp.json()
-
 
     def _get_listen_key(self) -> None:
         response = requests.post(
