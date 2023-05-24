@@ -276,7 +276,6 @@ class BinanceClient(BaseClient):
         res = requests.delete(url=self.BASE_URL + url_path + '?' + query_string, headers=self.headers).json()
         return res
 
-
     async def get_order_by_id(self, order_id: str, session: aiohttp.ClientSession):
         url_path = "/fapi/v1/allOpenOrders"
         payload = {
