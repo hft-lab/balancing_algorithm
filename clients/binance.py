@@ -13,7 +13,8 @@ import requests
 
 from config import Config
 from core.base_client import BaseClient
-from core.enums import ConnectMethodEnum, EventTypeEnum, PositionSideEnum, ResponseStatus
+from core.enums import ConnectMethodEnum, EventTypeEnum, PositionSideEnum, ResponseStatus, OrderStatus, \
+    ClientsOrderStatuses
 
 
 class BinanceClient(BaseClient):
@@ -203,7 +204,6 @@ class BinanceClient(BaseClient):
         res = requests.get(url=self.BASE_URL + url_path + '?' + query_string, headers=self.headers).json()
 
         if isinstance(res, dict):
-            print(res)
             for s in res.get('positions', []):
                 if float(s['positionAmt']):
                     self.positions.update({s['symbol']: {
@@ -282,19 +282,41 @@ class BinanceClient(BaseClient):
         return res
 
     async def get_order_by_id(self, order_id: str, session: aiohttp.ClientSession):
-        url_path = "/fapi/v1/allOpenOrders"
+        url_path = "/fapi/v1/openOrder"
         payload = {
             "timestamp": int(time.time() * 1000),
             "symbol": self.symbol,
-            "orderId": order_id
+            "orderId": order_id,
+            "recvWindow": int((time.time() + 2) * 1000)
         }
 
         query_string = self._prepare_query(payload)
         payload["signature"] = self._create_signature(query_string)
         query_string = self._prepare_query(payload)
 
-        async with session.post(url=self.BASE_URL + url_path + "?" + query_string, headers=self.headers) as resp:
-            return await resp.json()
+        async with session.get(url=self.BASE_URL + url_path + "?" + query_string, headers=self.headers) as resp:
+            res = await resp.json()
+            print(f'BINANCE {res}')
+
+            if res.get('code'):
+                return {
+                    'exchange_order_id': order_id,
+                    'exchange': self.EXCHANGE_NAME,
+                    'status': f'FAILED {res.get("msg")}',
+                    'factual_price': 0,
+                    'factual_amount_coin': 0,
+                    'factual_amount_usd': 0
+                }
+
+            return {
+                'exchange_order_id': order_id,
+                'exchange': self.EXCHANGE_NAME,
+                'status': OrderStatus.DELAYED_FULLY_EXECUTED if res.get(
+                    'status') in ClientsOrderStatuses.DELAYED_FULLY_EXECUTED else OrderStatus.NOT_EXECUTED,
+                'factual_price': float(res['price']),
+                'factual_amount_coin': float(res['size']),
+                'factual_amount_usd': float(res['size']) * float(res['price'])
+            }
 
     def _get_listen_key(self) -> None:
         response = requests.post(

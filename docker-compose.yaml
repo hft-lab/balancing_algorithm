@@ -1,0 +1,59 @@
+version: '3.5'
+
+services:
+
+  balancing:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+    build:
+      context: .
+      dockerfile: "Dockerfile.workers"
+    env_file:
+      - .env
+    depends_on:
+      - migrate
+    restart: always
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 && python consumer.py -q logger.periodic.balancing'
+
+  get_orders_results:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+    build:
+      context: .
+      dockerfile: "Dockerfile.workers"
+    env_file:
+      - .env
+    depends_on:
+      - migrate
+    restart: always
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 && python consumer.py -q logger.event.get_orders_results'
+
+  producer:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+    build:
+      context: .
+      dockerfile: "Dockerfile.workers"
+    env_file:
+      - .env
+    depends_on:
+      - migrate
+    restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 && python producer.py'

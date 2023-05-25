@@ -4,6 +4,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+SECOND = 1
+MINUTE = 60
+TEN_MINUTES = MINUTE * 10
+HOUR = MINUTE * 60
+DAY = HOUR * 24
 
 class Config:
     MIN_DISBALANCE = float(getenv('MIN_DISBALANCE'))
@@ -69,6 +74,17 @@ class Config:
         "symbol": getenv("APOLLOX_SYMBOL"),
         "apollox_shift": int(getenv("APOLLOX_SHIFT"))
     }
+
+    PERIODIC_TASKS = [
+        {
+            'exchange': 'logger.periodic',
+            'queue': 'logger.periodic.balancing',
+            'routing_key': 'logger.periodic.balancing',
+            'interval': MINUTE * 3,
+            'delay': SECOND * 10,
+            'payload': {}
+        }
+    ]
 
     LOGGING = {
         'version': 1,

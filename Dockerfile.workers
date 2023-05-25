@@ -1,7 +1,9 @@
 FROM python:3.8
 
-RUN mkdir balancing_algorithm
-WORKDIR ./balancing_algorithm
+
+RUN mkdir multibot
+WORKDIR ./multibot
+RUN touch rates.txt
 COPY . .
 
 RUN pip install --upgrade pip
@@ -11,4 +13,4 @@ RUN pip install python-dotenv
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 ENV PYTHONPATH="/:$PYTHONPATH"
-ENV TZ=UTC
+ENV TZ=Europe/London

@@ -47,3 +47,15 @@ class ResponseStatus:
     SUCCESS = 'success'
     NO_CONNECTION = 'no_connection'
     ERROR = 'error'
+
+
+class OrderStatus:
+    NOT_EXECUTED = 'Not Executed'
+    DELAYED_FULLY_EXECUTED = 'Delayed Fully Executed'
+    PARTIALLY_EXECUTED = 'Partially Executed'
+    INSTANT_FULLY_EXECUTED = 'Instant Fully Executed'
+
+
+class ClientsOrderStatuses:
+    DELAYED_FULLY_EXECUTED = ['FILLED']
+    NOT_EXECUTED = ['CANCELED']

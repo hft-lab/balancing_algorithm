@@ -17,7 +17,7 @@ from web3 import Web3
 
 from config import Config
 from core.base_client import BaseClient
-from core.enums import ResponseStatus, PositionSideEnum
+from core.enums import ResponseStatus, PositionSideEnum, OrderStatus, ClientsOrderStatuses
 
 
 class DydxClient(BaseClient):
@@ -136,6 +136,38 @@ class DydxClient(BaseClient):
     # async def test_create_order(self, amount: str, price: str, side: str, type: str) -> dict:
     #     async with aiohttp.ClientSession() as session:
     #        await self.create_order(amount, price, side, session, type)
+
+    async def get_order_by_id(self, order_id: str, session: aiohttp.ClientSession):
+        data = {}
+        now_iso_string = generate_now_iso()
+        request_path = f'/v3/orders/{order_id}'
+        signature = self.client.private.sign(
+            request_path=request_path,
+            method='GET',
+            iso_timestamp=now_iso_string,
+            data=remove_nones(data),
+        )
+
+        headers = {
+            'DYDX-SIGNATURE': signature,
+            'DYDX-API-KEY': self.API_KEYS['key'],
+            'DYDX-TIMESTAMP': now_iso_string,
+            'DYDX-PASSPHRASE': self.API_KEYS['passphrase']
+        }
+
+        async with session.get(url=self.BASE_URL + request_path, headers=headers, data=json.dumps(remove_nones(data))) as resp:
+            res = await resp.json()
+            if res := res.get('order'):
+                return {
+                    'exchange_order_id': order_id,
+                    'exchange': self.EXCHANGE_NAME,
+                    'status': OrderStatus.DELAYED_FULLY_EXECUTED if res.get('status') in ClientsOrderStatuses.DELAYED_FULLY_EXECUTED else OrderStatus.NOT_EXECUTED,
+                    'factual_price': float(res['price']),
+                    'factual_amount_coin': float(res['size']),
+                    'factual_amount_usd': float(res['size']) * float(res['price'])
+                }
+            else:
+                print(res)
 
     async def create_order(self, amount: float, price: float, side: str, session: aiohttp.ClientSession,
                            type: str = 'LIMIT', expire: int = 10000, client_id: str = None, expiration=None) -> dict:
@@ -615,12 +647,8 @@ class DydxClient(BaseClient):
 
 if __name__ == '__main__':
     client = DydxClient(Config.DYDX, Config.LEVERAGE)
-    client.run_updater()
+    async def f():
+        async with aiohttp.ClientSession() as session:
+            await client.get_order_by_id('04684b69dbb0a45fc34f18fbdfa259440d0ba57fc96607e587aa7a8e786f142', session)
 
-    time.sleep(15)
-
-    while True:
-        print(f"{client.get_available_balance('sell')=}")
-        print(f"{client.get_available_balance('buy')=}")
-        print('\n')
-        time.sleep(1000000)
+    asyncio.run(f())
