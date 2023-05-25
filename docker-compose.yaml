@@ -12,8 +12,6 @@ services:
       dockerfile: "Dockerfile.workers"
     env_file:
       - .env
-    depends_on:
-      - migrate
     restart: always
     command:
       - '/bin/sh'
@@ -30,8 +28,6 @@ services:
       dockerfile: "Dockerfile.workers"
     env_file:
       - .env
-    depends_on:
-      - migrate
     restart: always
     command:
       - '/bin/sh'
@@ -48,8 +44,6 @@ services:
       dockerfile: "Dockerfile.workers"
     env_file:
       - .env
-    depends_on:
-      - migrate
     restart: always
     extra_hosts:
       - "host.docker.internal:host-gateway"
