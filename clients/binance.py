@@ -282,7 +282,7 @@ class BinanceClient(BaseClient):
         return res
 
     async def get_order_by_id(self, order_id: str, session: aiohttp.ClientSession):
-        url_path = "/fapi/v1/openOrder"
+        url_path = "/fapi/v1/order"
         payload = {
             "timestamp": int(time.time() * 1000),
             "symbol": self.symbol,
@@ -308,14 +308,20 @@ class BinanceClient(BaseClient):
                     'factual_amount_usd': 0
                 }
 
+            if res.get('status') in ClientsOrderStatuses.DELAYED_FULLY_EXECUTED:
+                status = OrderStatus.DELAYED_FULLY_EXECUTED
+            elif res.get('status') in ClientsOrderStatuses.NOT_EXECUTED and float(res['origQty']) > float(res['executedQty']):
+                status = OrderStatus.PARTIALLY_EXECUTED
+            else:
+                status = OrderStatus.NOT_EXECUTED
+
             return {
                 'exchange_order_id': order_id,
                 'exchange': self.EXCHANGE_NAME,
-                'status': OrderStatus.DELAYED_FULLY_EXECUTED if res.get(
-                    'status') in ClientsOrderStatuses.DELAYED_FULLY_EXECUTED else OrderStatus.NOT_EXECUTED,
-                'factual_price': float(res['price']),
-                'factual_amount_coin': float(res['size']),
-                'factual_amount_usd': float(res['size']) * float(res['price'])
+                'status':status,
+                'factual_price': float(res['avgPrice']),
+                'factual_amount_coin': float(res['origQty']),
+                'factual_amount_usd': float(res['origQty']) * float(res['avgPrice'])
             }
 
     def _get_listen_key(self) -> None:
@@ -356,9 +362,17 @@ class BinanceClient(BaseClient):
 
 if __name__ == '__main__':
     client = BinanceClient(Config.BINANCE, Config.LEVERAGE)
-    client.run_updater()
-    time.sleep(15)
 
-    while True:
-        pprint(client.positions)
-        time.sleep(1)
+
+    async def f():
+        async with aiohttp.ClientSession() as s:
+            print(await client.get_order_by_id('153874318767', s))
+
+
+    asyncio.run(f())
+    # client.run_updater()
+    # time.sleep(15)
+    #
+    # while True:
+    #     pprint(client.positions)
+    #     time.sleep(1)

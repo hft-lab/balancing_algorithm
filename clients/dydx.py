@@ -157,6 +157,7 @@ class DydxClient(BaseClient):
 
         async with session.get(url=self.BASE_URL + request_path, headers=headers, data=json.dumps(remove_nones(data))) as resp:
             res = await resp.json()
+            print(res)
             if res := res.get('order'):
                 return {
                     'exchange_order_id': order_id,
@@ -649,6 +650,6 @@ if __name__ == '__main__':
     client = DydxClient(Config.DYDX, Config.LEVERAGE)
     async def f():
         async with aiohttp.ClientSession() as session:
-            await client.get_order_by_id('04684b69dbb0a45fc34f18fbdfa259440d0ba57fc96607e587aa7a8e786f142', session)
+            await client.get_order_by_id('2717df2cf3fc2ee031c68b9f0724205849eb72fde292922cd745e207d2c3cf9', session)
 
     asyncio.run(f())
