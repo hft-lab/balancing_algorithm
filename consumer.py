@@ -11,6 +11,7 @@ from aiohttp.web import Application
 
 from config import Config
 from tasks.event.get_orders_results import GetOrdersResults
+from tasks.periodic.balancing import Balancing
 
 dictConfig(Config.LOGGING)
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 TASKS = {
     'logger.event.get_orders_results': GetOrdersResults,
 
-    'logger.periodic.balancing': GetOrdersResults,
+    'logger.periodic.balancing': Balancing,
 }
 
 
