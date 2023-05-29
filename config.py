@@ -10,6 +10,9 @@ TEN_MINUTES = MINUTE * 10
 HOUR = MINUTE * 60
 DAY = HOUR * 24
 
+GLOBAL_SYMBOL = getenv('GLOBAL_SYMBOL')
+
+
 class Config:
     MIN_DISBALANCE = float(getenv('MIN_DISBALANCE'))
     LEVERAGE = float(getenv('LEVERAGE'))
@@ -17,6 +20,7 @@ class Config:
     ENV = getenv('ENV')
     TELEGRAM_CHAT_ID = getenv('TELEGRAM_CHAT_ID')
     TELEGRAM_TOKEN = getenv('TELEGRAM_TOKEN')
+    GLOBAL_SYMBOL = getenv("GLOBAL_SYMBOL")
 
     RABBIT = {
         "host": getenv("RABBIT_HOST"),
@@ -77,9 +81,9 @@ class Config:
 
     PERIODIC_TASKS = [
         {
-            'exchange': 'logger.periodic',
-            'queue': 'logger.periodic.balancing',
-            'routing_key': 'logger.periodic.balancing',
+            'exchange': f'logger.periodic_{GLOBAL_SYMBOL}',
+            'queue': f'logger.periodic_{GLOBAL_SYMBOL}.balancing',
+            'routing_key': f'logger.periodic_{GLOBAL_SYMBOL}.balancing',
             'interval': MINUTE * 3,
             'delay': SECOND * 10,
             'payload': {}

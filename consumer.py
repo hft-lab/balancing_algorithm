@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 TASKS = {
     'logger.event.get_orders_results': GetOrdersResults,
 
-    'logger.periodic.balancing': Balancing,
+    f'logger.periodic_{Config.GLOBAL_SYMBOL}.balancing': Balancing
 }
 
 

@@ -1,9 +1,9 @@
+import orjson
+from aio_pika import Message, ExchangeType, connect_robust
+
 from clients.binance import BinanceClient
 from clients.dydx import DydxClient
 from config import Config
-from aio_pika import Message, ExchangeType, connect_robust
-import traceback
-import orjson
 
 
 class BaseTask:

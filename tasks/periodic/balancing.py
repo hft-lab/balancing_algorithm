@@ -89,7 +89,6 @@ class Balancing(BaseTask):
         if abs(self.disbalance_usd) > Config.MIN_DISBALANCE:
             self.side = 'sell' if self.disbalance_usd > 0 else 'buy'
             self.disbalance_id = uuid.uuid4()  # noqa
-            await self.save_disbalance()
 
             print('FOUND DISBALANCE')
             for client_name, client in self.clients.items():
@@ -100,6 +99,7 @@ class Balancing(BaseTask):
                 tasks_data.update({client_name: {'price': price, 'order_place_time':  time.time()}})
 
             await self.__place_and_save_orders(tasks, tasks_data, amount)
+            await self.save_disbalance()
 
     async def __place_and_save_orders(self, tasks, tasks_data, amount) -> None:
         for res in await asyncio.gather(*tasks, return_exceptions=True):
