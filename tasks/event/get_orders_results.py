@@ -23,7 +23,7 @@ class GetOrdersResults(BaseTask):
     async def __check_all_orders(self, payload: dict) -> None:
         try:
             async with aiohttp.ClientSession() as session:
-                self.order_result = await self.clients[payload['exchange']].get_order_by_id(payload['order_ids'], session)
+                self.order_result = await self.clients[payload['exchange']].get_order_by_id(str(payload['order_ids']), session)
                 print(f'{self.order_result=}')
 
         except aiohttp.ServerDisconnectedError:
