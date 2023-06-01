@@ -3,7 +3,7 @@ import asyncio
 import aiohttp
 
 from core.base_task import BaseTask
-from core.enums import RabbitMqQueues
+from clients.enums import RabbitMqQueues
 
 
 class GetOrdersResults(BaseTask):

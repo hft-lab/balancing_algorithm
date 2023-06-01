@@ -17,7 +17,7 @@ dictConfig(Config.LOGGING)
 logger = logging.getLogger(__name__)
 
 TASKS = {
-    'logger.event.get_orders_results': GetOrdersResults,
+    f'logger.event_{Config.GLOBAL_SYMBOL}.get_orders_results': GetOrdersResults,
 
     f'logger.periodic_{Config.GLOBAL_SYMBOL}.balancing': Balancing
 }
