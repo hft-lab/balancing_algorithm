@@ -7,7 +7,7 @@ import aiohttp
 
 from config import Config
 from core.base_task import BaseTask
-from core.enums import PositionSideEnum, RabbitMqQueues
+from clients.enums import PositionSideEnum, RabbitMqQueues
 
 
 class Balancing(BaseTask):
