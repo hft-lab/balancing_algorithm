@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 import aiohttp
 
@@ -14,6 +15,12 @@ class GetOrdersResults(BaseTask):
         self.app = app
         self.order_result = {}
 
+        for _, client in self.clients.items():
+            if client.EXCHANGE_NAME in ('BINANCE', 'APOLLOX'):
+                client.run_updater()
+
+        time.sleep(10)
+
     async def run(self, payload) -> None:
         print('START')
         await self.__check_all_orders(payload)
@@ -24,7 +31,7 @@ class GetOrdersResults(BaseTask):
         try:
             async with aiohttp.ClientSession() as session:
                 self.order_result = await self.clients[payload['exchange']].get_order_by_id(str(payload['order_ids']), session)
-                print(f'{self.order_result=}')
+                print(payload['exchange'], f'{self.order_result=}')
 
         except aiohttp.ServerDisconnectedError:
             await self.__check_all_orders(payload)

@@ -32,7 +32,7 @@ services:
     command:
       - '/bin/sh'
       - '-c'
-      - '/bin/sleep 10 && python consumer.py -q logger.event.get_orders_results'
+      - '/bin/sleep 10 && python consumer.py -q logger.event_${GLOBAL_SYMBOL}.get_orders_results'
 
   producer:
     logging:
