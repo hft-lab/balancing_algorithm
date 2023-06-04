@@ -33,12 +33,15 @@ class Balancing(BaseTask):
     async def run(self, payload: dict) -> None:
         print('START BALANCING')
         async with aiohttp.ClientSession() as session:
-            await self.__close_all_open_orders()
-            await self.__get_positions()
-            await self.__get_total_positions()
-            await self.__balancing_positions(session)
+            while True:
+                await self.__close_all_open_orders()
+                await self.__get_positions()
+                await self.__get_total_positions()
+                await self.__balancing_positions(session)
 
-            self.__set_default()
+                self.__set_default()
+
+                time.sleep(Config.TIMEOUT)
 
     def __set_default(self) -> None:
         self.positions = {}

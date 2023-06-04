@@ -1,10 +1,9 @@
 FROM python:3.8
 
-
 RUN mkdir multibot
 WORKDIR ./multibot
-RUN touch rates.txt
-COPY . .
+
+COPY ./requirements.txt ./requirements.txt
 
 RUN pip install --upgrade pip
 RUN pip install bitmex
@@ -14,3 +13,8 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 
 ENV PYTHONPATH="/:$PYTHONPATH"
 ENV TZ=Europe/London
+
+COPY . .
+
+RUN touch rates.txt
+
