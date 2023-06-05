@@ -2,7 +2,7 @@ version: '3.5'
 
 services:
 
-  balancing:
+  balancing_eth:
     logging:
       driver: "json-file"
       options:
@@ -11,7 +11,23 @@ services:
       context: .
       dockerfile: "Dockerfile.workers"
     env_file:
-      - .env
+      - .env.eth
+    restart: always
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 && python tasks/periodic/balancing.py'
+
+  balancing_btc:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+    build:
+      context: .
+      dockerfile: "Dockerfile.workers"
+    env_file:
+      - .env.btc
     restart: always
     command:
       - '/bin/sh'
