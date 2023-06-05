@@ -15,9 +15,9 @@ class Balancing(BaseTask):
                 'disbalance_usd', 'side', 'mq', 'session', 'open_orders', 'app', \
                 'chat_id', 'telegram_bot', 'env', 'disbalance_id', 'average_price'  # noqa
 
-    def __init__(self, app):
+    def __init__(self):
         super().__init__()
-        self.app = app
+
         self.__set_default()
 
         for client in self.clients:
@@ -26,18 +26,22 @@ class Balancing(BaseTask):
         self.chat_id = Config.TELEGRAM_CHAT_ID
         self.telegram_bot = Config.TELEGRAM_TOKEN
         self.env = Config.ENV
-        self.disbalance_id = 0  # noqa
 
         time.sleep(15)
 
-    async def run(self, payload: dict) -> None:
+    async def run(self, loop) -> None:
         print('START BALANCING')
+
         async with aiohttp.ClientSession() as session:
             while True:
+                await self.setup_mq(loop)
+
                 await self.__close_all_open_orders()
                 await self.__get_positions()
                 await self.__get_total_positions()
                 await self.__balancing_positions(session)
+
+                await self.mq.close()
 
                 self.__set_default()
 
@@ -47,8 +51,9 @@ class Balancing(BaseTask):
         self.positions = {}
         self.open_orders = {}
         self.total_position = 0
-        self.disbalance_coin = 0  # noqa
-        self.disbalance_usd = 0  # noqa
+        self.disbalance_coin = 0
+        self.disbalance_usd = 0
+        self.disbalance_id = 0
         self.side = 'LONG'
 
     async def __get_positions(self) -> None:
@@ -129,7 +134,7 @@ class Balancing(BaseTask):
             'order_place_time': order_place_time,
             'env': self.env
         }
-        await self.publish_message(connect=self.app['mq'],
+        await self.publish_message(connect=self.mq,
                                    message=message,
                                    routing_key=RabbitMqQueues.ORDERS,
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.ORDERS),
@@ -154,7 +159,7 @@ class Balancing(BaseTask):
             'entry_price': client_position_by_symbol.get('entry_price', 0),
             'mark_price': mark_price
         }
-        await self.publish_message(connect=self.app['mq'],
+        await self.publish_message(connect=self.mq,
                                    message=message,
                                    routing_key=RabbitMqQueues.BALANCE_DETALIZATION,
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.BALANCE_DETALIZATION),
@@ -171,7 +176,7 @@ class Balancing(BaseTask):
             'price': self.average_price
         }
 
-        await self.publish_message(connect=self.app['mq'],
+        await self.publish_message(connect=self.mq,
                                    message=message,
                                    routing_key=RabbitMqQueues.DISBALANCE,
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.DISBALANCE),
@@ -179,6 +184,6 @@ class Balancing(BaseTask):
 
 
 if __name__ == '__main__':
-    worker = Balancing({})
+    worker = Balancing()
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(worker.run({}))
+    loop.run_until_complete(worker.run(loop))
