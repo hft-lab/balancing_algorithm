@@ -155,7 +155,7 @@ class Balancing(BaseTask):
             'max_margin': client.leverage,
             'current_margin': abs(client_position_by_symbol.get('amount', 0) * mark_price / client.get_real_balance()),
             'position_coin': client_position_by_symbol.get('amount', 0),
-            'position_usd': client_position_by_symbol.get('amount_usd', 0),
+            'position_usd': round(client_position_by_symbol.get('amount_usd', 0), 1),
             'entry_price': client_position_by_symbol.get('entry_price', 0),
             'mark_price': mark_price
         }
