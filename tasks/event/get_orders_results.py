@@ -29,7 +29,6 @@ class GetOrdersResults(BaseTask):
 
     async def __send_to_save_orders_results(self):
         if self.order_result:
-
             await self.publish_message(connect=self.app['mq'],
                                        message=self.order_result,
                                        routing_key=RabbitMqQueues.UPDATE_ORDERS,
