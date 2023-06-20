@@ -66,3 +66,19 @@ services:
       - '-c'
       - '/bin/sleep 10 && python consumer.py -q logger.event_${GLOBAL_SYMBOL}.get_orders_results'
 
+  balance_check:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+    build:
+      context: .
+      dockerfile: "Dockerfile.workers"
+    env_file:
+      - .env.eth
+    restart: always
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 && python consumer.py -q logger.event.check_balance'
+

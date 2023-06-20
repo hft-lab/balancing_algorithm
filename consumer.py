@@ -9,6 +9,7 @@ from aio_pika import connect_robust
 from aiohttp.web import Application
 
 from config import Config
+from tasks.event.check_balance import CheckBalance
 from tasks.event.get_orders_results import GetOrdersResults
 
 
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 TASKS = {
     f'logger.event_{Config.GLOBAL_SYMBOL}.get_orders_results': GetOrdersResults,
+    'logger.event.check_balance': CheckBalance
 }
 
 
