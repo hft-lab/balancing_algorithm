@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 TASKS = {
     f'logger.event_{Config.GLOBAL_SYMBOL}.get_orders_results': GetOrdersResults,
-    f'logger.periodic.funding': Funding,
+    'logger.periodic.funding': Funding,
     'logger.event.check_balance': CheckBalance
 }
 
@@ -50,17 +50,12 @@ class Consumer:
             logger.info("Single work option")
             self.periodic_tasks.append(self.loop.create_task(self._consume(self.app['mq'], self.queue)))
 
-        else:
-            logger.info("Multiple work option")
-            for queue_name in TASKS:
-                self.periodic_tasks.append(self.loop.create_task(self._consume(self.app['mq'], queue_name)))
 
     async def setup_mq(self):
         self.app['mq'] = await connect_robust(self.rabbit_url, loop=self.loop)
 
     async def _consume(self, connection, queue_name) -> None:
         channel = await connection.channel()
-
         queue = await channel.declare_queue(queue_name, durable=True)
         await queue.consume(self.on_message)
 
@@ -83,7 +78,7 @@ class Consumer:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-q', nargs='?', const=True, dest='queue', default='logger.event.get_orders_results')
+    parser.add_argument('-q', nargs='?', const=True, dest='queue', default='logger.event.check_balance')
     args = parser.parse_args()
 
     loop = asyncio.get_event_loop()

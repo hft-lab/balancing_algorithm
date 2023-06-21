@@ -95,7 +95,6 @@ class Balancing(BaseTask):
 
             print('FOUND DISBALANCE')
             for client_name, client in self.clients.items():
-                await self.save_balance_detalization(client, 'pre-balancing')
                 ask_or_bid = 'bids' if self.side == 'LONG' else 'asks'
                 price = client.get_orderbook().get(client.symbol, {}).get(ask_or_bid)[0][0]  # noqa
                 tasks.append(client.create_order(amount=amount, side=self.side, price=price, session=session))
@@ -140,31 +139,6 @@ class Balancing(BaseTask):
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.ORDERS),
                                    queue_name=RabbitMqQueues.ORDERS)
 
-    async def save_balance_detalization(self, client, context):  # noqa
-        client_position_by_symbol = client.get_positions()[client.symbol]
-        mark_price = (client.get_orderbook()[client.symbol]['asks'][0][0] +
-                      client.get_orderbook()[client.symbol]['bids'][0][0]) / 2
-        message = {
-            'id': uuid.uuid4(),
-            'datetime': datetime.datetime.utcnow(),
-            'ts': time.time(),
-            'context': context,
-            'parent_id': self.disbalance_id,
-            'exchange': client.EXCHANGE_NAME,
-            'symbol': client.symbol,
-            'max_margin': client.leverage,
-            'current_margin': abs(client_position_by_symbol.get('amount', 0) * mark_price / client.get_real_balance()),
-            'position_coin': client_position_by_symbol.get('amount', 0),
-            'position_usd': round(client_position_by_symbol.get('amount_usd', 0), 1),
-            'entry_price': client_position_by_symbol.get('entry_price', 0),
-            'mark_price': mark_price
-        }
-        await self.publish_message(connect=self.mq,
-                                   message=message,
-                                   routing_key=RabbitMqQueues.BALANCE_DETALIZATION,
-                                   exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.BALANCE_DETALIZATION),
-                                   queue_name=RabbitMqQueues.BALANCE_DETALIZATION)
-
     async def save_disbalance(self):
         message = {
             'id': self.disbalance_id,
@@ -173,7 +147,9 @@ class Balancing(BaseTask):
             'coin_name': self.clients['BINANCE'].symbol,
             'position_coin': self.disbalance_coin,
             'position_usd': self.disbalance_usd,
-            'price': self.average_price
+            'price': self.average_price,
+            'threshold':  Config.MIN_DISBALANCE,
+            'status': 'Processing'
         }
 
         await self.publish_message(connect=self.mq,

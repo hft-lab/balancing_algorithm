@@ -1,3 +1,4 @@
+import asyncio
 import time
 import uuid
 from datetime import datetime
@@ -22,6 +23,7 @@ class CheckBalance(BaseTask):
         self.positions = []
 
     async def run(self, payload: dict) -> None:
+        await asyncio.sleep(5)
         self.parent_id = payload['parent_id']
         self.context = payload['context']
         self.env = payload['env']
@@ -36,11 +38,13 @@ class CheckBalance(BaseTask):
             await self.__save_balance(client, balance_id)
 
             for symbol in client.get_positions():
+                await client.get_orderbook_by_symbol(symbol)
                 await self.__save_balance_detalization(symbol, client, balance_id)
 
     async def __save_balance(self, client, balance_id) -> None:
         sum_amount_usd = sum(
                 [x.get('amount_usd', 0) for _, x in client.get_positions().items()])
+
         message = {
             'id': balance_id,
             'datetime': datetime.utcnow(),
@@ -93,7 +97,7 @@ class CheckBalance(BaseTask):
             'available_for_sell': real_balance * client.leverage + position_usd
         }
 
-        await self.publish_message(connect=self.mq,
+        await self.publish_message(connect=self.app['mq'],
                                    message=message,
                                    routing_key=RabbitMqQueues.BALANCE_DETALIZATION,
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.BALANCE_DETALIZATION),
