@@ -79,6 +79,17 @@ class Config:
         "apollox_shift": int(getenv("APOLLOX_SHIFT"))
     }
 
+    PERIODIC_TASKS = [
+        {
+            'exchange': f'logger.periodic',
+            'queue': f'logger.periodic.funding',
+            'routing_key': f'logger.periodic.funding',
+            'interval': HOUR,
+            'delay': SECOND * 10,
+            'payload': {}
+        }
+    ]
+
     LOGGING = {
         'version': 1,
         'disable_existing_loggers': False,

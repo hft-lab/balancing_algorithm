@@ -1,0 +1,69 @@
+import asyncio
+import uuid
+
+import aiohttp
+
+from config import Config
+from core.base_task import BaseTask
+from clients.enums import RabbitMqQueues
+
+
+class Funding(BaseTask):
+    __slots__ = 'clients', 'mq', 'session', 'app', 'env'
+
+    def __init__(self, app):
+        super().__init__()
+        self.app = app
+        self.env = Config.ENV
+
+    async def run(self, payload: dict) -> None:
+        async with aiohttp.ClientSession() as session:
+            await self.__get_fundings(session)
+
+    async def __get_fundings(self, session) -> None:
+        for client_name, client in self.clients.items():
+            fundings = await client.get_funding_payments(session)
+            for fund in fundings:
+                if fund.get('datetime'):
+                    await self.save_funding(fund, client_name)
+                else:
+                    print(fund)
+
+    async def save_funding(self, funding, exchange):
+        message = {
+            'id': uuid.uuid4(),
+            'datetime': funding['datetime'],
+            'ts': funding['time'],
+            'exchange_funding_id': funding['tranId'],
+            'exchange': exchange,
+            'symbol': funding['market'],
+            'amount': float(funding['payment']),
+            'asset': funding['asset'],
+            'position': float(funding['positionSize']),
+            'price': float(funding['price'])
+        }
+        print(message)
+
+        await self.publish_message(connect=self.app['mq'],
+                                   message=message,
+                                   routing_key=RabbitMqQueues.FUNDINGS,
+                                   exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.FUNDINGS),
+                                   queue_name=RabbitMqQueues.FUNDINGS)
+
+
+
+
+if __name__ == '__main__':
+    from aio_pika import connect_robust
+    from aiohttp.web import Application
+
+    async def connect_to_rabbit():
+        app['mq'] = await connect_robust(rabbit_url, loop=loop)
+        # Other code that depends on the connection
+
+    rabbit_url = f"amqp://{Config.RABBIT['username']}:{Config.RABBIT['password']}@{Config.RABBIT['host']}:{Config.RABBIT['port']}/"  # noqa
+    app = Application()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(connect_to_rabbit())
+    worker = Funding(app)
+    loop.run_until_complete(worker.run({}))
