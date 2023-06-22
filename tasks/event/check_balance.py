@@ -86,7 +86,6 @@ class CheckBalance(BaseTask):
             'parent_id': parent_id,
             'exchange': client.EXCHANGE_NAME,
             'symbol': symbol,
-            'max_margin': client.leverage,
             'current_margin': abs(client_position_by_symbol['amount_usd'] / real_balance),
             'position_coin': client_position_by_symbol['amount'],
             'position_usd': position_usd,
