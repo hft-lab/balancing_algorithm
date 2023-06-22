@@ -89,7 +89,7 @@ services:
         max-size: "5m"
     build:
       context: .
-      dockerfile: "dockerfile.workers"
+      dockerfile: "Dockerfile.workers"
     env_file:
       - .env.eth
     restart: always
