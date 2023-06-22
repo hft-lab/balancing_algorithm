@@ -82,7 +82,7 @@ services:
       - '-c'
       - '/bin/sleep 10 && python consumer.py -q logger.event.check_balance'
 
-  Funding:
+  funding:
     logging:
       driver: "json-file"
       options:
