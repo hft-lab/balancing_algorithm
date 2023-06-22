@@ -9,7 +9,7 @@ services:
         max-size: "5m"
     build:
       context: .
-      dockerfile: "Dockerfile.workers"
+      dockerfile: "dockerfile.workers"
     env_file:
       - .env.eth
     restart: always
@@ -25,7 +25,7 @@ services:
         max-size: "5m"
     build:
       context: .
-      dockerfile: "Dockerfile.workers"
+      dockerfile: "dockerfile.workers"
     env_file:
       - .env.btc
     restart: always
@@ -41,7 +41,7 @@ services:
         max-size: "5m"
     build:
       context: .
-      dockerfile: "Dockerfile.workers"
+      dockerfile: "dockerfile.workers"
     env_file:
       - .env.eth
     restart: always
@@ -57,7 +57,7 @@ services:
         max-size: "5m"
     build:
       context: .
-      dockerfile: "Dockerfile.workers"
+      dockerfile: "dockerfile.workers"
     env_file:
       - .env.btc
     restart: always
@@ -73,7 +73,7 @@ services:
         max-size: "5m"
     build:
       context: .
-      dockerfile: "Dockerfile.workers"
+      dockerfile: "dockerfile.workers"
     env_file:
       - .env.eth
     restart: always
@@ -89,7 +89,7 @@ services:
         max-size: "5m"
     build:
       context: .
-      dockerfile: "Dockerfile.workers"
+      dockerfile: "dockerfile.workers"
     env_file:
       - .env.eth
     restart: always
