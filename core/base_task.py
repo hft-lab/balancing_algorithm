@@ -15,7 +15,7 @@ class BaseTask:
             # BitmexClient(Config.BITMEX, Config.LEVERAGE),
             'DYDX': DydxClient(Config.DYDX, Config.LEVERAGE),
             'BINANCE': BinanceClient(Config.BINANCE, Config.LEVERAGE),
-            # ApolloxClient(Config.APOLLOX, Config.LEVERAGE),
+            ApolloxClient(Config.APOLLOX, Config.LEVERAGE)
             # OkxClient(Config.OKX, Config.LEVERAGE),
             # KrakenClient(Config.KRAKEN, Config.LEVERAGE)
         }
