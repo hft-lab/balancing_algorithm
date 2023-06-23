@@ -3,6 +3,7 @@ from aio_pika import Message, ExchangeType, connect_robust
 
 from clients.binance import BinanceClient
 from clients.dydx import DydxClient
+from clients.apollox import ApolloxClient
 from config import Config
 
 
@@ -15,7 +16,7 @@ class BaseTask:
             # BitmexClient(Config.BITMEX, Config.LEVERAGE),
             'DYDX': DydxClient(Config.DYDX, Config.LEVERAGE),
             'BINANCE': BinanceClient(Config.BINANCE, Config.LEVERAGE),
-            ApolloxClient(Config.APOLLOX, Config.LEVERAGE)
+            'APOLLOX': ApolloxClient(Config.APOLLOX, Config.LEVERAGE)
             # OkxClient(Config.OKX, Config.LEVERAGE),
             # KrakenClient(Config.KRAKEN, Config.LEVERAGE)
         }
