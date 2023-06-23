@@ -52,17 +52,17 @@ class CheckBalance(BaseTask):
             'context': self.context,
             'parent_id': self.parent_id,
             'exchange': client.EXCHANGE_NAME,
-            'exchange_balance': client.get_real_balance(),
-            'exchange_available_for_buy': client.get_available_balance('buy'),
-            'exchange_available_for_sell': client.get_available_balance('sell'),
-            'available_for_buy': client.get_real_balance() * 10 - sum(
-                [x.get('amount_usd', 0) for _, x in client.get_positions().items()]),
-            'available_for_sell': client.get_real_balance() * 10 + sum(
-                [x.get('amount_usd', 0) for _, x in client.get_positions().items()]),
+            'exchange_balance': round(client.get_real_balance(), 1),
+            'exchange_available_for_buy': round(client.get_available_balance('buy'), 1),
+            'exchange_available_for_sell': round(client.get_available_balance('sell'), 1),
+            'available_for_buy': round(client.get_real_balance() * 10 - sum(
+                [x.get('amount_usd', 0) for _, x in client.get_positions().items()]), 1),
+            'available_for_sell': round(client.get_real_balance() * 10 + sum(
+                [x.get('amount_usd', 0) for _, x in client.get_positions().items()]), 1),
             'env': self.env,
             'chat_id': self.chat_id,
             'bot_token': self.telegram_bot,
-            'current_margin': abs(sum_amount_usd / client.get_real_balance())
+            'current_margin': round(abs(sum_amount_usd / client.get_real_balance()), 1)
         }
 
         await self.publish_message(connect=self.app['mq'],
@@ -74,9 +74,9 @@ class CheckBalance(BaseTask):
 
     async def __save_balance_detalization(self, symbol, client, parent_id):
         client_position_by_symbol = client.get_positions()[symbol]
-        mark_price = (client.get_orderbook()[client.symbol]['asks'][0][0] +
-                      client.get_orderbook()[client.symbol]['bids'][0][0]) / 2
-        position_usd = client_position_by_symbol['amount'] * mark_price
+        mark_price = (client.get_orderbook()[symbol]['asks'][0][0] +
+                      client.get_orderbook()[symbol]['bids'][0][0]) / 2
+        position_usd = round(client_position_by_symbol['amount'] * mark_price, 1)
         real_balance = client.get_real_balance()
         message = {
             'id': uuid.uuid4(),
@@ -86,14 +86,14 @@ class CheckBalance(BaseTask):
             'parent_id': parent_id,
             'exchange': client.EXCHANGE_NAME,
             'symbol': symbol,
-            'current_margin': abs(client_position_by_symbol['amount_usd'] / real_balance),
+            'current_margin': round(abs(client_position_by_symbol['amount_usd'] / real_balance), 1),
             'position_coin': client_position_by_symbol['amount'],
             'position_usd': position_usd,
             'entry_price': client_position_by_symbol['entry_price'],
             'mark_price': mark_price,
             'grand_parent_id': self.parent_id,
-            'available_for_buy': real_balance * client.leverage - position_usd,
-            'available_for_sell': real_balance * client.leverage + position_usd
+            'available_for_buy': round(real_balance * client.leverage - position_usd, 1),
+            'available_for_sell': round(real_balance * client.leverage + position_usd, 1)
         }
 
         await self.publish_message(connect=self.app['mq'],

@@ -146,7 +146,7 @@ class Balancing(BaseTask):
             'ts': time.time(),
             'coin_name': self.clients['BINANCE'].symbol,
             'position_coin': self.disbalance_coin,
-            'position_usd': self.disbalance_usd,
+            'position_usd': round(self.disbalance_usd, 1),
             'price': self.average_price,
             'threshold':  Config.MIN_DISBALANCE,
             'status': 'Processing'
