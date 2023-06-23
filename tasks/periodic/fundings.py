@@ -51,8 +51,6 @@ class Funding(BaseTask):
                                    queue_name=RabbitMqQueues.FUNDINGS)
 
 
-
-
 if __name__ == '__main__':
     from aio_pika import connect_robust
     from aiohttp.web import Application

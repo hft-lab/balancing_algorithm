@@ -97,3 +97,23 @@ services:
       - '/bin/sh'
       - '-c'
       - '/bin/sleep 10 && python consumer.py -q logger.periodic.funding'
+
+  producer:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+    build:
+      context: .
+      dockerfile: "dockerfile.workers"
+    env_file:
+      - .env.eth
+    depends_on:
+      - migrate
+    restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 && python producer.py'
