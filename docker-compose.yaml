@@ -108,8 +108,6 @@ services:
       dockerfile: "dockerfile.workers"
     env_file:
       - .env.eth
-    depends_on:
-      - migrate
     restart: always
     extra_hosts:
       - "host.docker.internal:host-gateway"
