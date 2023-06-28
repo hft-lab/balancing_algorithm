@@ -53,12 +53,8 @@ class CheckBalance(BaseTask):
             'parent_id': self.parent_id,
             'exchange': client.EXCHANGE_NAME,
             'exchange_balance': round(client.get_real_balance(), 1),
-            'exchange_available_for_buy': round(client.get_available_balance('buy'), 1),
-            'exchange_available_for_sell': round(client.get_available_balance('sell'), 1),
-            'available_for_buy': round(client.get_real_balance() * 10 - sum(
-                [x.get('amount_usd', 0) for _, x in client.get_positions().items()]), 1),
-            'available_for_sell': round(client.get_real_balance() * 10 + sum(
-                [x.get('amount_usd', 0) for _, x in client.get_positions().items()]), 1),
+            'available_for_buy': round(client.get_available_balance('buy'), 1),
+            'available_for_sell': round(client.get_available_balance('sell'), 1),
             'env': self.env,
             'chat_id': self.chat_id,
             'bot_token': self.telegram_bot,
@@ -102,3 +98,24 @@ class CheckBalance(BaseTask):
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.BALANCE_DETALIZATION),
                                    queue_name=RabbitMqQueues.BALANCE_DETALIZATION
                                    )
+
+
+if __name__ == '__main__':
+    from aio_pika import connect_robust
+    from aiohttp.web import Application
+    from config import Config
+
+    async def connect_to_rabbit():
+        app['mq'] = await connect_robust(rabbit_url, loop=loop)
+        # Other code that depends on the connection
+
+    rabbit_url = f"amqp://{Config.RABBIT['username']}:{Config.RABBIT['password']}@{Config.RABBIT['host']}:{Config.RABBIT['port']}/"  # noqa
+    app = Application()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(connect_to_rabbit())
+    worker = CheckBalance(app)
+    loop.run_until_complete(worker.run({'parent_id': uuid.uuid4(),
+                                        'context': 'manual',
+                                        'env': 'Nikita_local_env',
+                                        'chat_id': -807300930,
+                                        'telegram_bot': '6037890725:AAHSKzK9aazvOYU2AiBSDO8ZLE5bJaBNrBw'}))
