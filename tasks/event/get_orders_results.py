@@ -17,7 +17,6 @@ class GetOrdersResults(BaseTask):
         await self.__check_all_orders(payload)
         await self.__send_to_save_orders_results()
 
-
     async def __check_all_orders(self, payload: dict) -> None:
         try:
             async with aiohttp.ClientSession() as session:
