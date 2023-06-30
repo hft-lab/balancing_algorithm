@@ -12,8 +12,8 @@ from clients.enums import PositionSideEnum, RabbitMqQueues
 
 class Balancing(BaseTask):
     __slots__ = 'clients', 'positions', 'total_position', 'disbalance_coin', \
-                'disbalance_usd', 'side', 'mq', 'session', 'open_orders', 'app', \
-                'chat_id', 'telegram_bot', 'env', 'disbalance_id', 'average_price'  # noqa
+        'disbalance_usd', 'side', 'mq', 'session', 'open_orders', 'app', \
+        'chat_id', 'telegram_bot', 'env', 'disbalance_id', 'average_price'  # noqa
 
     def __init__(self):
         super().__init__()
@@ -84,6 +84,9 @@ class Balancing(BaseTask):
         for _, client in self.clients.items():
             client.cancel_all_orders()
 
+    def __get_amount(self, client, amount) -> float:
+        return min([client.get_available_balance(self.side), amount])
+
     async def __balancing_positions(self, session) -> None:
         tasks = []
         tasks_data = {}
@@ -97,8 +100,9 @@ class Balancing(BaseTask):
             for client_name, client in self.clients.items():
                 ask_or_bid = 'bids' if self.side == 'LONG' else 'asks'
                 price = client.get_orderbook().get(client.symbol, {}).get(ask_or_bid)[0][0]  # noqa
-                tasks.append(client.create_order(amount=amount, side=self.side, price=price, session=session))
-                tasks_data.update({client_name: {'price': price, 'order_place_time':  time.time()}})
+                tasks.append(client.create_order(amount=self.__get_amount(client, amount), side=self.side, price=price,
+                                                 session=session))
+                tasks_data.update({client_name: {'price': price, 'order_place_time': time.time()}})
 
             await self.__place_and_save_orders(tasks, tasks_data, amount)
             await self.save_disbalance()
@@ -110,8 +114,9 @@ class Balancing(BaseTask):
             await self.save_orders(self.clients[exchange], tasks_data[exchange]['price'], amount, order_place_time)
 
     async def save_orders(self, client, expect_price, amount, order_place_time) -> None:
+        order_id = uuid.uuid4()
         message = {
-            'id': uuid.uuid4(),
+            'id': order_id,
             'datetime': datetime.datetime.utcnow(),
             'ts': time.time(),
             'context': 'balancing',
@@ -122,9 +127,9 @@ class Balancing(BaseTask):
             'exchange': client.EXCHANGE_NAME,
             'side': self.side,
             'symbol': client.symbol,
-            'expect_price': expect_price,
-            'expect_amount_coin': amount,
-            'expect_amount_usd': amount * expect_price,
+            'expect_price': client.expect_price,
+            'expect_amount_coin': client.expect_amount_coin,
+            'expect_amount_usd': client.expect_amount_coin * client.expect_price,
             'expect_fee': client.taker_fee * (amount * expect_price),
             'factual_price': 0,
             'factual_amount_coin': 0,
@@ -133,11 +138,27 @@ class Balancing(BaseTask):
             'order_place_time': order_place_time,
             'env': self.env
         }
-        await self.publish_message(connection=self.mq,
+
+        if client.LAST_ORDER_ID == 'default':
+            error_message = {
+                "chat_id": Config.TELEGRAM_CHAT_ID,
+                "msg": f"ALERT NAME: Order Mistake\nOrder Id:{order_id}\nError:{client.error_info}",
+                'bot_token': Config.TELEGRAM_TOKEN
+            }
+            await self.publish_message(connect=self.mq,
+                                       message=error_message,
+                                       routing_key=RabbitMqQueues.TELEGRAM,
+                                       exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.TELEGRAM),
+                                       queue_name=RabbitMqQueues.TELEGRAM)
+            client.error_info = None
+
+        await self.publish_message(connect=self.mq,
                                    message=message,
                                    routing_key=RabbitMqQueues.ORDERS,
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.ORDERS),
                                    queue_name=RabbitMqQueues.ORDERS)
+
+        client.LAST_ORDER_ID = 'default'
 
     async def save_disbalance(self):
         message = {
@@ -148,11 +169,11 @@ class Balancing(BaseTask):
             'position_coin': self.disbalance_coin,
             'position_usd': round(self.disbalance_usd, 1),
             'price': self.average_price,
-            'threshold':  Config.MIN_DISBALANCE,
+            'threshold': Config.MIN_DISBALANCE,
             'status': 'Processing'
         }
 
-        await self.publish_message(connection=self.mq,
+        await self.publish_message(connect=self.mq,
                                    message=message,
                                    routing_key=RabbitMqQueues.DISBALANCE,
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.DISBALANCE),
