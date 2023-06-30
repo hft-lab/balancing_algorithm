@@ -18,7 +18,7 @@ dictConfig(Config.LOGGING)
 logger = logging.getLogger(__name__)
 
 TASKS = {
-    f'logger.event_{Config.GLOBAL_SYMBOL}.get_orders_results': GetOrdersResults,
+    f'logger.event.get_orders_results': GetOrdersResults,
     'logger.periodic.funding': Funding,
     'logger.event.check_balance': CheckBalance
 }
@@ -50,7 +50,6 @@ class Consumer:
             logger.info("Single work option")
             self.periodic_tasks.append(self.loop.create_task(self._consume(self.app['mq'], self.queue)))
 
-
     async def setup_mq(self):
         self.app['mq'] = await connect_robust(self.rabbit_url, loop=self.loop)
 
@@ -64,7 +63,6 @@ class Consumer:
         try:
             if 'logger.periodic' in message.routing_key:
                 await message.ack()
-
             task = TASKS.get(message.routing_key)(self.app)
             await task.run(orjson.loads(message.body))
             logger.info(f"Success task {message.routing_key}")

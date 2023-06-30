@@ -133,7 +133,7 @@ class Balancing(BaseTask):
             'order_place_time': order_place_time,
             'env': self.env
         }
-        await self.publish_message(connect=self.mq,
+        await self.publish_message(connection=self.mq,
                                    message=message,
                                    routing_key=RabbitMqQueues.ORDERS,
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.ORDERS),
@@ -152,7 +152,7 @@ class Balancing(BaseTask):
             'status': 'Processing'
         }
 
-        await self.publish_message(connect=self.mq,
+        await self.publish_message(connection=self.mq,
                                    message=message,
                                    routing_key=RabbitMqQueues.DISBALANCE,
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.DISBALANCE),
