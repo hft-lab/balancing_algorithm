@@ -91,7 +91,7 @@ class Balancing(BaseTask):
         for client in self.clients.values():
             client.fit_amount(amount)
 
-        max_amount = max([client.expect_amount_coin for client in self.clients])
+        max_amount = max([client.expect_amount_coin for client in self.clients.values()])
 
         for client in self.clients.values():
             client.expect_amount_coin = max_amount
