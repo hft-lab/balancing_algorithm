@@ -88,12 +88,12 @@ class Balancing(BaseTask):
         return min([client.get_available_balance(self.side) / price, client.expect_amount_coin])
 
     def __get_amount_for_all_clients(self, amount):
-        for client in self.clients:
+        for client in self.clients.values():
             client.fit_amount(amount)
 
         max_amount = max([client.expect_amount_coin for client in self.clients])
 
-        for client in self.clients:
+        for client in self.clients.values():
             client.expect_amount_coin = max_amount
 
     async def __balancing_positions(self, session) -> None:
