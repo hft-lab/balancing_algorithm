@@ -84,20 +84,23 @@ class Balancing(BaseTask):
         for _, client in self.clients.items():
             client.cancel_all_orders()
 
-    def __get_amount(self, client, amount, price) -> float:
-        return min([client.get_available_balance(self.side) / price, amount])
+    def __get_min_amount(self, client, price) -> float:
+        return min([client.get_available_balance(self.side) / price, client.expect_amount_coin])
 
-    def __get_amount_for_all_clients(self, amount) -> float:
+    def __get_amount_for_all_clients(self, amount):
         for client in self.clients:
             client.fit_amount(amount)
 
-        return max([client.expect_amount_coin for client in self.clients])
+        max_amount = max([client.expect_amount_coin for client in self.clients])
 
+        for client in self.clients:
+            client.expect_amount_coin = max_amount
 
     async def __balancing_positions(self, session) -> None:
         tasks = []
         tasks_data = {}
-        amount = abs(self.disbalance_coin) / len(self.clients)
+
+        self.__get_amount_for_all_clients(abs(self.disbalance_coin) / len(self.clients))
 
         if abs(self.disbalance_usd) > Config.MIN_DISBALANCE:
             self.side = 'sell' if self.disbalance_usd > 0 else 'buy'
@@ -107,11 +110,14 @@ class Balancing(BaseTask):
             for client_name, client in self.clients.items():
                 ask_or_bid = 'bids' if self.side == 'LONG' else 'asks'
                 price = client.get_orderbook().get(client.symbol, {}).get(ask_or_bid)[0][0]
-                tasks.append(client.create_order(amount=self.__get_amount(client, amount, price), side=self.side, price=price,
-                                                 session=session))
+                tasks.append(client.create_order(amount=self.__get_min_amount(client, price),
+                                                 side=self.side,
+                                                 price=price,
+                                                 session=session,
+                                                 client_ID='api_balancing_'))
                 tasks_data.update({client_name: {'price': price, 'order_place_time': time.time()}})
 
-            await self.__place_and_save_orders(tasks, tasks_data, amount)
+            await self.__place_and_save_orders(tasks, tasks_data, client.expect_amount_coin)
             await self.save_disbalance()
 
     async def __place_and_save_orders(self, tasks, tasks_data, amount) -> None:

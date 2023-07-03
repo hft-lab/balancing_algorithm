@@ -19,12 +19,11 @@ class BaseClient(ABC):
         pass
 
     @abstractmethod
-    async def create_order(self, amount: float, price: float, side: str,
+    async def create_order(self, price: float, side: str,
                            session: aiohttp.ClientSession, expire: int = 100, client_ID: str = None) -> dict:
         """
         Create order func
 
-        :param amount: amount in coin
         :param price: SELL/BUY price
         :param side: SELL/BUY in lowercase
         :param order_type: LIMIT or MARKET
