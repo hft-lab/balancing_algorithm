@@ -98,6 +98,22 @@ services:
       - '-c'
       - '/bin/sleep 10 && python consumer.py -q logger.periodic.funding'
 
+  missed_orders:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+    build:
+      context: .
+      dockerfile: "dockerfile.workers"
+    env_file:
+      - .env.eth
+    restart: always
+    command:
+      - '/bin/sh'
+      - '-c'
+      - '/bin/sleep 10 && python consumer.py -q logger.periodic.get_missed_orders'
+
   producer:
     logging:
       driver: "json-file"

@@ -12,7 +12,7 @@ from config import Config
 from tasks.event.check_balance import CheckBalance
 from tasks.event.get_orders_results import GetOrdersResults
 from tasks.periodic.fundings import Funding
-
+from tasks.periodic.get_all_orders import GetMissedOrders
 
 dictConfig(Config.LOGGING)
 logger = logging.getLogger(__name__)
@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 TASKS = {
     f'logger.event.get_orders_results': GetOrdersResults,
     'logger.periodic.funding': Funding,
-    'logger.event.check_balance': CheckBalance
+    'logger.event.check_balance': CheckBalance,
+    'logger.periodic.get_missed_orders': GetMissedOrders
 }
 
 

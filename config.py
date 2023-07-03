@@ -87,6 +87,30 @@ class Config:
             'interval': HOUR,
             'delay': SECOND * 10,
             'payload': {}
+        },
+        {
+            'exchange': 'logger.periodic',
+            'queue': 'logger.periodic.get_missed_orders',
+            'routing_key': 'logger.periodic.get_missed_orders',
+            'interval': DAY,
+            'delay': SECOND * 10,
+            'payload': {
+                'DYDX': 'ETHUSD',
+                'BINANCE': 'ETHUSDT',
+                'APOLLOX': 'ETHUSDT'
+            }
+        },
+        {
+            'exchange': f'logger.periodic',
+            'queue': f'logger.periodic.get_missed_orders',
+            'routing_key': f'logger.periodic.get_missed_orders',
+            'interval': DAY,
+            'delay': SECOND * 10,
+            'payload': {
+                'DYDX': 'BTCUSD',
+                'BINANCE': 'BTCUSDT',
+                'APOLLOX': 'BTCUSDT'
+            }
         }
     ]
 
