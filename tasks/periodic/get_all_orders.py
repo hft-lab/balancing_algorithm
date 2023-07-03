@@ -14,7 +14,7 @@ class GetMissedOrders(BaseTask):
         orders = []
 
         async with aiohttp.ClientSession() as session:
-            for client in self.clients:
+            for client in self.clients.values():
                 orders += await client.get_all_orders(payload[client.EXCHANGE_NAME], session)
 
         for order in orders:
