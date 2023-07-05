@@ -34,7 +34,7 @@ services:
       - '-c'
       - '/bin/sleep 10 && python tasks/periodic/balancing.py'
 
-  get_orders_results_eth:
+  get_orders_results:
     logging:
       driver: "json-file"
       options:
@@ -48,23 +48,7 @@ services:
     command:
       - '/bin/sh'
       - '-c'
-      - '/bin/sleep 10 && python consumer.py -q logger.event_${GLOBAL_SYMBOL}.get_orders_results'
-
-  get_orders_results_btc:
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-    build:
-      context: .
-      dockerfile: "dockerfile.workers"
-    env_file:
-      - .env.btc
-    restart: always
-    command:
-      - '/bin/sh'
-      - '-c'
-      - '/bin/sleep 10 && python consumer.py -q logger.event_${GLOBAL_SYMBOL}.get_orders_results'
+      - '/bin/sleep 10 && python consumer.py -q logger.event.get_orders_results'
 
   balance_check:
     logging:
