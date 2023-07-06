@@ -113,7 +113,7 @@ class Balancing(BaseTask):
                 tasks.append(client.create_order(side=self.side,
                                                  price=price,
                                                  session=session,
-                                                 client_ID='api_balancing_'))
+                                                 client_id=f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"))
                 tasks_data.update({client_name: {'price': price, 'order_place_time': time.time()}})
 
             await self.__place_and_save_orders(tasks, tasks_data, client.expect_amount_coin)
