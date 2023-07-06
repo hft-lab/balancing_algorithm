@@ -110,8 +110,7 @@ class Balancing(BaseTask):
             for client_name, client in self.clients.items():
                 ask_or_bid = 'bids' if self.side == 'LONG' else 'asks'
                 price = client.get_orderbook().get(client.symbol, {}).get(ask_or_bid)[0][0]
-                tasks.append(client.create_order(amount=self.__get_min_amount(client, price),
-                                                 side=self.side,
+                tasks.append(client.create_order(side=self.side,
                                                  price=price,
                                                  session=session,
                                                  client_ID='api_balancing_'))
