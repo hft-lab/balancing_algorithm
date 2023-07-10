@@ -84,9 +84,6 @@ class Balancing(BaseTask):
         for _, client in self.clients.items():
             client.cancel_all_orders()
 
-    def __get_min_amount(self, client, price) -> float:
-        return min([client.get_available_balance(self.side) / price, client.expect_amount_coin])
-
     def __get_amount_for_all_clients(self, amount):
         for client in self.clients.values():
             client.fit_amount(amount)
@@ -110,11 +107,13 @@ class Balancing(BaseTask):
             for client_name, client in self.clients.items():
                 ask_or_bid = 'bids' if self.side == 'LONG' else 'asks'
                 price = client.get_orderbook().get(client.symbol, {}).get(ask_or_bid)[0][0]
-                tasks.append(client.create_order(side=self.side,
-                                                 price=price,
-                                                 session=session,
-                                                 client_id=f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"))
-                tasks_data.update({client_name: {'price': price, 'order_place_time': time.time()}})
+
+                if client.get_available_balance(self.side) >= client.expect_amount_coin:
+                    tasks.append(client.create_order(side=self.side,
+                                                     price=price,
+                                                     session=session,
+                                                     client_id=f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"))
+                    tasks_data.update({client_name: {'price': price, 'order_place_time': time.time()}})
 
             await self.__place_and_save_orders(tasks, tasks_data, client.expect_amount_coin)
             await self.save_disbalance()

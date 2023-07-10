@@ -6,7 +6,7 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "5m"
+        max-size: "100m"
     build:
       context: .
       dockerfile: "dockerfile.workers"
@@ -22,7 +22,7 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "5m"
+        max-size: "100m"
     build:
       context: .
       dockerfile: "dockerfile.workers"
@@ -38,7 +38,7 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "5m"
+        max-size: "100m"
     build:
       context: .
       dockerfile: "dockerfile.workers"
@@ -54,7 +54,7 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "5m"
+        max-size: "100m"
     build:
       context: .
       dockerfile: "dockerfile.workers"
@@ -70,7 +70,7 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "5m"
+        max-size: "100m"
     build:
       context: .
       dockerfile: "dockerfile.workers"
@@ -86,7 +86,7 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "5m"
+        max-size: "100m"
     build:
       context: .
       dockerfile: "dockerfile.workers"
@@ -102,7 +102,7 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "5m"
+        max-size: "100m"
     build:
       context: .
       dockerfile: "dockerfile.workers"
