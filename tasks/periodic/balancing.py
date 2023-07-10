@@ -129,7 +129,7 @@ class Balancing(BaseTask):
         message = {
             'id': order_id,
             'datetime': datetime.datetime.utcnow(),
-            'ts': time.time(),
+            'ts': time.time() * 1000,
             'context': 'balancing',
             'parent_id': self.disbalance_id,
             'exchange_order_id': client.LAST_ORDER_ID,
@@ -175,7 +175,7 @@ class Balancing(BaseTask):
         message = {
             'id': self.disbalance_id,
             'datetime': datetime.datetime.utcnow(),
-            'ts': time.time(),
+            'ts': time.time() * 1000,
             'coin_name': self.clients['BINANCE'].symbol,
             'position_coin': self.disbalance_coin,
             'position_usd': round(self.disbalance_usd, 1),
