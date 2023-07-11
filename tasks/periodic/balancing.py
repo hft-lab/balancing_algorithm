@@ -20,8 +20,8 @@ class Balancing(BaseTask):
 
         self.__set_default()
 
-        for client in self.clients:
-            self.clients[client].run_updater()
+        # for client in self.clients:
+        #     self.clients[client].run_updater()
 
         self.chat_id = Config.TELEGRAM_CHAT_ID
         self.telegram_bot = Config.TELEGRAM_TOKEN
@@ -31,17 +31,18 @@ class Balancing(BaseTask):
 
     async def run(self, loop) -> None:
         print('START BALANCING')
-
         async with aiohttp.ClientSession() as session:
             while True:
                 await self.setup_mq(loop)
-
+                for client in self.clients:
+                    await self.clients[client].get_orderbook_by_symbol()
+                    self.clients[client].get_position()
                 await self.__close_all_open_orders()
                 await self.__get_positions()
                 await self.__get_total_positions()
                 await self.__balancing_positions(session)
-
                 await self.mq.close()
+                print(f"MQ CLOSED")
 
                 self.__set_default()
 
@@ -193,5 +194,5 @@ class Balancing(BaseTask):
 
 if __name__ == '__main__':
     worker = Balancing()
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
     loop.run_until_complete(worker.run(loop))
