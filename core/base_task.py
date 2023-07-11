@@ -19,14 +19,12 @@ class BaseTask:
             'BINANCE': BinanceClient(Config.BINANCE, Config.LEVERAGE),
             'APOLLOX': ApolloxClient(Config.APOLLOX, Config.LEVERAGE),
             # OkxClient(Config.OKX, Config.LEVERAGE),
-            'KRAKEN': KrakenClient(Config.KRAKEN, Config.LEVERAGE)
+            # 'KRAKEN': KrakenClient(Config.KRAKEN, Config.LEVERAGE)
         }
 
     @staticmethod
     async def publish_message(connect, message, routing_key, exchange_name, queue_name):
-        print('1' * 30)
         channel = await connect.channel()
-        print('2' * 30)
         exchange = await channel.declare_exchange(exchange_name, type=ExchangeType.DIRECT, durable=True)
         queue = await channel.declare_queue(queue_name, durable=True)
         await queue.bind(exchange, routing_key=routing_key)
