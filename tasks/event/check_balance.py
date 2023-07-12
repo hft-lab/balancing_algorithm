@@ -42,9 +42,7 @@ class CheckBalance(BaseTask):
                 await self.__save_balance_detalization(symbol, client, balance_id)
 
     async def __save_balance(self, client, balance_id) -> None:
-        sum_amount_usd = sum(
-                [x.get('amount_usd', 0) for _, x in client.get_positions().items()])
-
+        sum_amount_usd = sum([x.get('amount_usd', 0) for _, x in client.get_positions().items()])
         message = {
             'id': balance_id,
             'datetime': datetime.utcnow(),
@@ -91,31 +89,9 @@ class CheckBalance(BaseTask):
             'available_for_buy': round(real_balance * client.leverage - position_usd, 1),
             'available_for_sell': round(real_balance * client.leverage + position_usd, 1)
         }
-
         await self.publish_message(connect=self.app['mq'],
                                    message=message,
                                    routing_key=RabbitMqQueues.BALANCE_DETALIZATION,
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.BALANCE_DETALIZATION),
                                    queue_name=RabbitMqQueues.BALANCE_DETALIZATION
                                    )
-
-
-if __name__ == '__main__':
-    from aio_pika import connect_robust
-    from aiohttp.web import Application
-    from config import Config
-
-    async def connect_to_rabbit():
-        app['mq'] = await connect_robust(rabbit_url, loop=loop)
-        # Other code that depends on the connection
-
-    rabbit_url = f"amqp://{Config.RABBIT['username']}:{Config.RABBIT['password']}@{Config.RABBIT['host']}:{Config.RABBIT['port']}/"  # noqa
-    app = Application()
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(connect_to_rabbit())
-    worker = CheckBalance(app)
-    loop.run_until_complete(worker.run({'parent_id': uuid.uuid4(),
-                                        'context': 'manual',
-                                        'env': 'Nikita_local_env',
-                                        'chat_id': -807300930,
-                                        'telegram_bot': '6037890725:AAHSKzK9aazvOYU2AiBSDO8ZLE5bJaBNrBw'}))

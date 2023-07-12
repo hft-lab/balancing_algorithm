@@ -20,9 +20,6 @@ class Balancing(BaseTask):
 
         self.__set_default()
 
-        # for client in self.clients:
-        #     self.clients[client].run_updater()
-
         self.chat_id = Config.TELEGRAM_CHAT_ID
         self.telegram_bot = Config.TELEGRAM_TOKEN
         self.env = Config.ENV
@@ -118,12 +115,28 @@ class Balancing(BaseTask):
 
             await self.__place_and_save_orders(tasks, tasks_data, client.expect_amount_coin)
             await self.save_disbalance()
+            await self.save_balance()
 
     async def __place_and_save_orders(self, tasks, tasks_data, amount) -> None:
         for res in await asyncio.gather(*tasks, return_exceptions=True):
             exchange = res['exchange_name']
             order_place_time = res['timestamp'] - tasks_data[exchange]['order_place_time']
             await self.save_orders(self.clients[exchange], tasks_data[exchange]['price'], amount, order_place_time)
+
+    async def save_balance(self) -> None:
+        message = {
+            'parent_id': self.disbalance_id,
+            'context': 'post-balancing',
+            'env': self.env,
+            'chat_id': self.chat_id,
+            'telegram_bot': self.telegram_bot,
+        }
+
+        await self.publish_message(connect=self.mq,
+                                   message=message,
+                                   routing_key=RabbitMqQueues.CHECK_BALANCE,
+                                   exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.CHECK_BALANCE),
+                                   queue_name=RabbitMqQueues.CHECK_BALANCE)
 
     async def save_orders(self, client, expect_price, amount, order_place_time) -> None:
         order_id = uuid.uuid4()

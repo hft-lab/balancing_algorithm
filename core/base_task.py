@@ -19,7 +19,7 @@ class BaseTask:
             'BINANCE': BinanceClient(Config.BINANCE, Config.LEVERAGE),
             'APOLLOX': ApolloxClient(Config.APOLLOX, Config.LEVERAGE),
             # OkxClient(Config.OKX, Config.LEVERAGE),
-            # 'KRAKEN': KrakenClient(Config.KRAKEN, Config.LEVERAGE)
+            'KRAKEN': KrakenClient(Config.KRAKEN, Config.LEVERAGE)
         }
 
     @staticmethod
