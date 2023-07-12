@@ -57,3 +57,6 @@ class BaseClient(ABC):
     @abstractmethod
     def get_last_price(self, side: str) -> float:
         pass
+
+    async def get_all_orders(self, symbol: str, session: aiohttp.ClientSession) -> list:
+        return []

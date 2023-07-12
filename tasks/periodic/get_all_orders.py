@@ -17,8 +17,9 @@ class GetMissedOrders(BaseTask):
             for client in self.clients.values():
                 orders += await client.get_all_orders(payload[client.EXCHANGE_NAME], session)
 
+        # print(orders)
         for order in orders:
-            if 'api_' not in order['client_id']:
+            if 'web-' in order['context']:
                 await self.publish_message(connect=self.app['mq'],
                                            message=order,
                                            routing_key=RabbitMqQueues.ORDERS,
