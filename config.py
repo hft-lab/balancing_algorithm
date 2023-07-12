@@ -95,9 +95,10 @@ class Config:
             'interval': DAY,
             'delay': SECOND * 10,
             'payload': {
-                'DYDX': 'ETHUSD',
+                'DYDX': 'ETH-USD',
                 'BINANCE': 'ETHUSDT',
-                'APOLLOX': 'ETHUSDT'
+                'APOLLOX': 'ETHUSDT',
+                'KRAKEN': 'PF_ETHUSD'
             }
         },
         {
@@ -109,7 +110,8 @@ class Config:
             'payload': {
                 'DYDX': 'BTCUSD',
                 'BINANCE': 'BTCUSDT',
-                'APOLLOX': 'BTCUSDT'
+                'APOLLOX': 'BTCUSDT',
+                'KRAKEN': 'PF_XBTUSD'
             }
         }
     ]
