@@ -24,8 +24,6 @@ class Balancing(BaseTask):
         self.telegram_bot = Config.TELEGRAM_TOKEN
         self.env = Config.ENV
 
-        time.sleep(15)
-
     async def run(self, loop) -> None:
         print('START BALANCING')
         async with aiohttp.ClientSession() as session:
@@ -51,7 +49,7 @@ class Balancing(BaseTask):
         self.total_position = 0
         self.disbalance_coin = 0
         self.disbalance_usd = 0
-        self.disbalance_id = 0
+        self.disbalance_id = uuid.uuid4()
         self.side = 'LONG'
 
     async def __get_positions(self) -> None:
@@ -78,6 +76,9 @@ class Balancing(BaseTask):
         self.disbalance_coin = positions['long']['coin'] + positions['short']['coin']  # noqa
         self.disbalance_usd = positions['long']['usd'] + positions['short']['usd']  # noqa
 
+        print(f'{self.disbalance_usd=}')
+
+
     async def __close_all_open_orders(self) -> None:
         for _, client in self.clients.items():
             client.cancel_all_orders()
@@ -99,7 +100,6 @@ class Balancing(BaseTask):
 
         if abs(self.disbalance_usd) > Config.MIN_DISBALANCE:
             self.side = 'sell' if self.disbalance_usd > 0 else 'buy'
-            self.disbalance_id = uuid.uuid4()  # noqa
 
             print('FOUND DISBALANCE')
             for client_name, client in self.clients.items():
