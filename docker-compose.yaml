@@ -18,21 +18,21 @@ services:
       - '-c'
       - '/bin/sleep 10 && python tasks/periodic/balancing.py'
 
-  balancing_btc:
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-    build:
-      context: .
-      dockerfile: "dockerfile.workers"
-    env_file:
-      - .env.btc
-    restart: always
-    command:
-      - '/bin/sh'
-      - '-c'
-      - '/bin/sleep 10 && python tasks/periodic/balancing.py'
+#  balancing_btc:
+#    logging:
+#      driver: "json-file"
+#      options:
+#        max-size: "100m"
+#    build:
+#      context: .
+#      dockerfile: "dockerfile.workers"
+#    env_file:
+#      - .env.btc
+#    restart: always
+#    command:
+#      - '/bin/sh'
+#      - '-c'
+#      - '/bin/sleep 10 && python tasks/periodic/balancing.py'
 
   get_orders_results:
     logging:
