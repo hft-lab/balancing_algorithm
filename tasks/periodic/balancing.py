@@ -1,3 +1,5 @@
+
+
 import asyncio
 import time
 import datetime
@@ -13,16 +15,22 @@ from clients.enums import PositionSideEnum, RabbitMqQueues
 class Balancing(BaseTask):
     __slots__ = 'clients', 'positions', 'total_position', 'disbalance_coin', \
         'disbalance_usd', 'side', 'mq', 'session', 'open_orders', 'app', \
-        'chat_id', 'telegram_bot', 'env', 'disbalance_id', 'average_price'  # noqa
+        'chat_id', 'telegram_bot', 'env', 'disbalance_id', 'average_price', \
+        'orderbooks'# noqa
 
     def __init__(self):
         super().__init__()
 
         self.__set_default()
 
+        # for client in self.clients:
+        #     self.clients[client].run_updater()
+        self.orderbooks = {}
         self.chat_id = Config.TELEGRAM_CHAT_ID
         self.telegram_bot = Config.TELEGRAM_TOKEN
         self.env = Config.ENV
+
+        time.sleep(15)
 
     async def run(self, loop) -> None:
         print('START BALANCING')
@@ -30,7 +38,7 @@ class Balancing(BaseTask):
             while True:
                 await self.setup_mq(loop)
                 for client in self.clients:
-                    await self.clients[client].get_orderbook_by_symbol()
+                    self.orderbooks.update({client: await self.clients[client].get_orderbook_by_symbol()})
                     self.clients[client].get_position()
                 await self.__close_all_open_orders()
                 await self.__get_positions()
@@ -56,11 +64,11 @@ class Balancing(BaseTask):
         prices = []
         for client_name, client in self.clients.items():
             self.positions[client.EXCHANGE_NAME] = client.get_positions().get(client.symbol, {})
-            orderbook = client.get_orderbook()[client.symbol]
+            orderbook = self.orderbooks[client_name]
             prices.append((orderbook['asks'][0][0] + orderbook['bids'][0][0]) / 2)
 
         self.average_price = sum(prices) / len(prices)
-        print(f'{self.positions=}')
+        # print(f'{self.positions=}')
 
     async def __get_total_positions(self) -> None:
         positions = {'long': {'coin': 0, 'usd': 0}, 'short': {'coin': 0, 'usd': 0}}
@@ -75,9 +83,6 @@ class Balancing(BaseTask):
 
         self.disbalance_coin = positions['long']['coin'] + positions['short']['coin']  # noqa
         self.disbalance_usd = positions['long']['usd'] + positions['short']['usd']  # noqa
-
-        print(f'{self.disbalance_usd=}')
-
 
     async def __close_all_open_orders(self) -> None:
         for _, client in self.clients.items():
@@ -100,6 +105,7 @@ class Balancing(BaseTask):
 
         if abs(self.disbalance_usd) > Config.MIN_DISBALANCE:
             self.side = 'sell' if self.disbalance_usd > 0 else 'buy'
+            self.disbalance_id = uuid.uuid4()  # noqa
 
             print('FOUND DISBALANCE')
             for client_name, client in self.clients.items():
