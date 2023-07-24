@@ -149,7 +149,7 @@ class Balancing(BaseTask):
         message = {
             'id': order_id,
             'datetime': datetime.datetime.utcnow(),
-            'ts': int(time.time() * 1000),
+            'ts': int(time.time()),
             'context': 'balancing',
             'parent_id': self.disbalance_id,
             'exchange_order_id': client.LAST_ORDER_ID,
@@ -171,9 +171,11 @@ class Balancing(BaseTask):
         }
 
         if client.LAST_ORDER_ID == 'default':
+            coin = client.symbol.split('USD')[0].replace('-', '').replace('/', '')
             error_message = {
                 "chat_id": Config.TELEGRAM_CHAT_ID,
-                "msg": f"ALERT NAME: Order Mistake\nOrder Id:{order_id}\nError:{client.error_info}",
+                "msg": f"ALERT NAME: Order Mistake\nCOIN: {coin}\nCONTEXT: BOT\nENV: {self.env}\nEXCHANGE: "
+                       f"{client.EXCHANGE_NAME}\nOrder Id:{order_id}\nError:{client.error_info}",
                 'bot_token': Config.TELEGRAM_TOKEN
             }
             await self.publish_message(connect=self.mq,
@@ -195,7 +197,7 @@ class Balancing(BaseTask):
         message = {
             'id': self.disbalance_id,
             'datetime': datetime.datetime.utcnow(),
-            'ts': int(time.time() * 1000),
+            'ts': int(time.time()),
             'coin_name': self.clients['BINANCE'].symbol,
             'position_coin': self.disbalance_coin,
             'position_usd': round(self.disbalance_usd, 1),
