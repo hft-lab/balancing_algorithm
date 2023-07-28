@@ -64,6 +64,8 @@ class Balancing(BaseTask):
         prices = []
         for client_name, client in self.clients.items():
             self.positions[client.EXCHANGE_NAME] = client.get_positions().get(client.symbol, {})
+            print(self.positions[client.EXCHANGE_NAME])
+            print()
             orderbook = self.orderbooks[client_name]
             prices.append((orderbook['asks'][0][0] + orderbook['bids'][0][0]) / 2)
 
@@ -74,6 +76,8 @@ class Balancing(BaseTask):
         positions = {'long': {'coin': 0, 'usd': 0}, 'short': {'coin': 0, 'usd': 0}}
 
         for ecx_name, position in self.positions.items():
+            print(f"{ecx_name}: {position}")
+            print()
             if position and position.get('side') == PositionSideEnum.LONG:
                 positions['long']['coin'] += position['amount']
                 positions['long']['usd'] += position['amount_usd']
@@ -101,7 +105,7 @@ class Balancing(BaseTask):
         tasks = []
         tasks_data = {}
 
-        self.__get_amount_for_all_clients(abs(self.disbalance_coin) / len(self.clients))
+        # self.__get_amount_for_all_clients(abs(self.disbalance_coin) / len(self.clients))
 
         if abs(self.disbalance_usd) > Config.MIN_DISBALANCE:
             self.side = 'sell' if self.disbalance_usd > 0 else 'buy'
