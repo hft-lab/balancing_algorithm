@@ -119,7 +119,7 @@ class Balancing(BaseTask):
                                                      price=price,
                                                      session=session,
                                                      client_id=client_id))
-                    tasks_data.update({client_name: {'price': price, 'order_place_time': time.time()}})
+                    tasks_data.update({client_name: {'price': price, 'order_place_time': int(time.time() * 1000),}})
 
             await self.__place_and_save_orders(tasks, tasks_data, client.expect_amount_coin)
             await self.save_disbalance()
@@ -151,7 +151,7 @@ class Balancing(BaseTask):
         message = {
             'id': order_id,
             'datetime': datetime.datetime.utcnow(),
-            'ts': int(time.time()),
+            'ts': int(time.time() * 1000),
             'context': 'balancing',
             'parent_id': self.disbalance_id,
             'exchange_order_id': client.LAST_ORDER_ID,
@@ -199,7 +199,7 @@ class Balancing(BaseTask):
         message = {
             'id': self.disbalance_id,
             'datetime': datetime.datetime.utcnow(),
-            'ts': int(time.time()),
+            'ts': int(time.time() * 1000),
             'coin_name': self.clients['BINANCE'].symbol,
             'position_coin': self.disbalance_coin,
             'position_usd': round(self.disbalance_usd, 1),
