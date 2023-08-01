@@ -46,7 +46,7 @@ class CheckBalance(BaseTask):
         message = {
             'id': balance_id,
             'datetime': datetime.utcnow(),
-            'ts': time.time(),
+            'ts': int(time.time() * 1000),
             'context': self.context,
             'parent_id': self.parent_id,
             'exchange': client.EXCHANGE_NAME,
@@ -75,7 +75,7 @@ class CheckBalance(BaseTask):
         message = {
             'id': uuid.uuid4(),
             'datetime': datetime.utcnow(),
-            'ts': time.time(),
+            'ts': int(time.time() * 1000),
             'context': self.context,
             'parent_id': parent_id,
             'exchange': client.EXCHANGE_NAME,
