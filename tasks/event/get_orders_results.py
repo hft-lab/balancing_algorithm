@@ -17,7 +17,9 @@ class GetOrdersResults(BaseTask):
         for data in payload:
             try:
                 async with aiohttp.ClientSession() as session:
-                    if res := await self.clients[data['exchange']].get_order_by_id(data['symbol'], data['order_ids'], session):
+                    if res := await self.clients[data['exchange']].get_order_by_id(data['symbol'],
+                                                                                   data['order_ids'],
+                                                                                   session):
                         print(f'{res=}')
                         await self.publish_message(connect=self.app['mq'],
                                                    message=res,

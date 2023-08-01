@@ -64,8 +64,6 @@ class Balancing(BaseTask):
         prices = []
         for client_name, client in self.clients.items():
             self.positions[client.EXCHANGE_NAME] = client.get_positions().get(client.symbol, {})
-            print(self.positions[client.EXCHANGE_NAME])
-            print()
             orderbook = self.orderbooks[client_name]
             prices.append((orderbook['asks'][0][0] + orderbook['bids'][0][0]) / 2)
 
@@ -96,16 +94,16 @@ class Balancing(BaseTask):
         for client in self.clients.values():
             client.fit_amount(amount)
 
-        max_amount = max([client.expect_amount_coin for client in self.clients.values()])
-
-        for client in self.clients.values():
-            client.expect_amount_coin = max_amount
+        # max_amount = max([client.expect_amount_coin for client in self.clients.values()])
+        #
+        # for client in self.clients.values():
+        #     client.expect_amount_coin = max_amount
 
     async def __balancing_positions(self, session) -> None:
         tasks = []
         tasks_data = {}
 
-        # self.__get_amount_for_all_clients(abs(self.disbalance_coin) / len(self.clients))
+        self.__get_amount_for_all_clients(abs(self.disbalance_coin) / len(self.clients))
 
         if abs(self.disbalance_usd) > Config.MIN_DISBALANCE:
             self.side = 'sell' if self.disbalance_usd > 0 else 'buy'
@@ -114,13 +112,13 @@ class Balancing(BaseTask):
             print('FOUND DISBALANCE')
             for client_name, client in self.clients.items():
                 ask_or_bid = 'bids' if self.side == 'LONG' else 'asks'
-                price = client.get_orderbook().get(client.symbol, {}).get(ask_or_bid)[0][0]
-
+                price = self.orderbooks[client_name][ask_or_bid][0][0]
                 if client.get_available_balance(self.side) >= client.expect_amount_coin:
+                    client_id = f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"
                     tasks.append(client.create_order(side=self.side,
                                                      price=price,
                                                      session=session,
-                                                     client_id=f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"))
+                                                     client_id=client_id))
                     tasks_data.update({client_name: {'price': price, 'order_place_time': time.time()}})
 
             await self.__place_and_save_orders(tasks, tasks_data, client.expect_amount_coin)
