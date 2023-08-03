@@ -37,9 +37,14 @@ class Balancing(BaseTask):
         async with aiohttp.ClientSession() as session:
             while True:
                 await self.setup_mq(loop)
-                for client in self.clients:
-                    self.orderbooks.update({client: await self.clients[client].get_orderbook_by_symbol()})
-                    self.clients[client].get_position()
+                try:
+                    for exchange, client in self.clients.items():
+                        self.orderbooks.update({exchange: await client.get_orderbook_by_symbol()})
+                        client.get_position()
+                except Exception as e:
+                    print(f"Line 45 balancing.py. {e}")
+                    time.sleep(60)
+                    continue
                 await self.__close_all_open_orders()
                 await self.__get_positions()
                 await self.__get_total_positions()
@@ -72,10 +77,10 @@ class Balancing(BaseTask):
 
     async def __get_total_positions(self) -> None:
         positions = {'long': {'coin': 0, 'usd': 0}, 'short': {'coin': 0, 'usd': 0}}
-
+        message = f'POSITIONS:\n'
         for ecx_name, position in self.positions.items():
-            print(f"{ecx_name}: {position}")
-            print()
+            coin = self.clients[ecx_name].symbol
+            message += f"{ecx_name}, {coin}: {round(position['amount'], 4)} | {round(position['amount_usd'], 1)} USD\n"
             if position and position.get('side') == PositionSideEnum.LONG:
                 positions['long']['coin'] += position['amount']
                 positions['long']['usd'] += position['amount_usd']
@@ -85,6 +90,22 @@ class Balancing(BaseTask):
 
         self.disbalance_coin = positions['long']['coin'] + positions['short']['coin']  # noqa
         self.disbalance_usd = positions['long']['usd'] + positions['short']['usd']  # noqa
+        await self.send_positions_message(message)
+
+    async def send_positions_message(self, message):
+        message += f"\nDISBALANCE:\n"
+        message += f"COIN: {round(self.disbalance_coin, 4)}\n"
+        message += f"USD: {round(self.disbalance_usd, 1)}"
+        send_message = {
+            "chat_id": Config.TELEGRAM_CHAT_ID,
+            "msg": message,
+            'bot_token': Config.TELEGRAM_TOKEN
+        }
+        await self.publish_message(connect=self.mq,
+                                   message=send_message,
+                                   routing_key=RabbitMqQueues.TELEGRAM,
+                                   exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.TELEGRAM),
+                                   queue_name=RabbitMqQueues.TELEGRAM)
 
     async def __close_all_open_orders(self) -> None:
         for _, client in self.clients.items():
@@ -109,7 +130,6 @@ class Balancing(BaseTask):
             self.side = 'sell' if self.disbalance_usd > 0 else 'buy'
             self.disbalance_id = uuid.uuid4()  # noqa
 
-            print('FOUND DISBALANCE')
             for client_name, client in self.clients.items():
                 ask_or_bid = 'bids' if self.side == 'LONG' else 'asks'
                 price = self.orderbooks[client_name][ask_or_bid][0][0]
@@ -119,11 +139,27 @@ class Balancing(BaseTask):
                                                      price=price,
                                                      session=session,
                                                      client_id=client_id))
-                    tasks_data.update({client_name: {'price': price, 'order_place_time': int(time.time() * 1000),}})
+                    tasks_data.update({client_name: {'price': price, 'order_place_time': int(time.time() * 1000)}})
 
             await self.__place_and_save_orders(tasks, tasks_data, client.expect_amount_coin)
             await self.save_disbalance()
             await self.save_balance()
+            await self.send_balancing_message(client)
+
+    async def send_balancing_message(self, client):
+        message = 'BALANCING PROCEED:\n'
+        message += f"ORDER SIZE PER EXCHANGE: {client.expect_amount_coin}\n"
+        message += f"NUMBER OF EXCHANGES: {len(self.clients.keys())}\n"
+        send_message = {
+            "chat_id": Config.TELEGRAM_CHAT_ID,
+            "msg": message,
+            'bot_token': Config.TELEGRAM_TOKEN
+        }
+        await self.publish_message(connect=self.mq,
+                                   message=send_message,
+                                   routing_key=RabbitMqQueues.TELEGRAM,
+                                   exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.TELEGRAM),
+                                   queue_name=RabbitMqQueues.TELEGRAM)
 
     async def __place_and_save_orders(self, tasks, tasks_data, amount) -> None:
         for res in await asyncio.gather(*tasks, return_exceptions=True):
