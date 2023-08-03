@@ -66,21 +66,21 @@ services:
       - '-c'
       - '/bin/sleep 10 && python3 consumer.py -q logger.event.check_balance'
 
-  funding:
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-    build:
-      context: .
-      dockerfile: "dockerfile.workers"
-    env_file:
-      - .env.eth
-    restart: always
-    command:
-      - '/bin/sh'
-      - '-c'
-      - '/bin/sleep 10 && python3 consumer.py -q logger.periodic.funding'
+#  funding:
+#    logging:
+#      driver: "json-file"
+#      options:
+#        max-size: "100m"
+#    build:
+#      context: .
+#      dockerfile: "dockerfile.workers"
+#    env_file:
+#      - .env.eth
+#    restart: always
+#    command:
+#      - '/bin/sh'
+#      - '-c'
+#      - '/bin/sleep 10 && python3 consumer.py -q logger.periodic.funding'
 
 #  missed_orders:
 #    logging:
