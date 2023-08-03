@@ -5,11 +5,12 @@ WORKDIR ./multibot
 
 COPY ./requirements.txt ./requirements.txt
 
-RUN pip install --upgrade pip
-RUN pip install bitmex
+RUN pip3 install --upgrade pip
+RUN pip3 install bitmex
 RUN pip3 install dydx_v3_python
-RUN pip install python-dotenv
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip3 install python-dotenv
+RUN pip3 install --no-cache-dir --user -r requirements.txt
+RUN pip3 install --upgrade requests
 
 ENV PYTHONPATH="/:$PYTHONPATH"
 ENV TZ=Europe/London
