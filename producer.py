@@ -1,22 +1,34 @@
 import asyncio
 import logging
-
+from logging.config import dictConfig
 import orjson
 from aio_pika import connect, ExchangeType, Message
+from tasks.periodic.periodic_tasks import PeriodicTasks
 
-from config import Config
 
+import configparser
+import sys
+config = configparser.ConfigParser()
+config.read(sys.argv[1], "utf-8")
+
+
+dictConfig({'version': 1, 'disable_existing_loggers': False, 'formatters': {
+                'simple': {'format': '[%(asctime)s][%(threadName)s] %(funcName)s: %(message)s'}},
+            'handlers': {'console': {'class': 'logging.StreamHandler', 'level': 'DEBUG', 'formatter': 'simple',
+                'stream': 'ext://sys.stdout'}},
+            'loggers': {'': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False}}})
 logger = logging.getLogger(__name__)
 
 
 class WorkerProducer:
     def __init__(self, loop):
         self.loop = loop
-        self.rabbit_url = f"amqp://{Config.RABBIT['username']}:{Config.RABBIT['password']}@{Config.RABBIT['host']}:{Config.RABBIT['port']}/"
+        rabbit = config['RABBIT']
+        self.rabbit_url = f"amqp://{rabbit['USERNAME']}:{rabbit['PASSWORD']}@{rabbit['HOST']}:{rabbit['PORT']}/"
         self.periodic_tasks = []
 
     async def run(self):
-        for task in Config.PERIODIC_TASKS:
+        for task in PeriodicTasks.PERIODIC_TASKS:
             self.periodic_tasks.append(self.loop.create_task(self._publishing_task(task)))
 
     async def _publishing_task(self, task):

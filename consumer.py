@@ -8,13 +8,21 @@ import orjson
 from aio_pika import connect_robust
 from aiohttp.web import Application
 
-from config import Config
 from tasks.event.check_balance import CheckBalance
 from tasks.event.get_orders_results import GetOrdersResults
 from tasks.periodic.fundings import Funding
 from tasks.periodic.get_all_orders import GetMissedOrders
 
-dictConfig(Config.LOGGING)
+import configparser
+import sys
+config = configparser.ConfigParser()
+config.read(sys.argv[1], "utf-8")
+
+dictConfig({'version': 1, 'disable_existing_loggers': False, 'formatters': {
+                'simple': {'format': '[%(asctime)s][%(threadName)s] %(funcName)s: %(message)s'}},
+            'handlers': {'console': {'class': 'logging.StreamHandler', 'level': 'DEBUG', 'formatter': 'simple',
+                'stream': 'ext://sys.stdout'}},
+            'loggers': {'': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False}}})
 logger = logging.getLogger(__name__)
 
 TASKS = {
@@ -34,7 +42,8 @@ class Consumer:
         self.app = Application()
         self.loop = loop
         self.queue = queue
-        self.rabbit_url = f"amqp://{Config.RABBIT['username']}:{Config.RABBIT['password']}@{Config.RABBIT['host']}:{Config.RABBIT['port']}/"  # noqa
+        rabbit = config['RABBIT']
+        self.rabbit_url = f"amqp://{rabbit['USERNAME']}:{rabbit['PASSWORD']}@{rabbit['HOST']}:{rabbit['PORT']}/"  # noqa
         self.periodic_tasks = []
 
     async def run(self) -> None:

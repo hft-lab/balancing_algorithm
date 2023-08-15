@@ -3,9 +3,13 @@ import uuid
 
 import aiohttp
 
-from config import Config
 from core.base_task import BaseTask
 from clients.enums import RabbitMqQueues
+
+import configparser
+import sys
+config = configparser.ConfigParser()
+config.read(sys.argv[1], "utf-8")
 
 
 class Funding(BaseTask):
@@ -14,7 +18,7 @@ class Funding(BaseTask):
     def __init__(self, app):
         super().__init__()
         self.app = app
-        self.env = Config.ENV
+        self.env = config['SETTINGS']['ENV']
 
     async def run(self, payload: dict) -> None:
         async with aiohttp.ClientSession() as session:
@@ -58,8 +62,8 @@ if __name__ == '__main__':
     async def connect_to_rabbit():
         app['mq'] = await connect_robust(rabbit_url, loop=loop)
         # Other code that depends on the connection
-
-    rabbit_url = f"amqp://{Config.RABBIT['username']}:{Config.RABBIT['password']}@{Config.RABBIT['host']}:{Config.RABBIT['port']}/"  # noqa
+    rabbit = config['RABBIT']
+    rabbit_url = f"amqp://{rabbit['USERNAME']}:{rabbit['PASSWORD']}@{rabbit['HOST']}:{rabbit['PORT']}/"  # noqa
     app = Application()
     loop = asyncio.get_event_loop()
     loop.run_until_complete(connect_to_rabbit())

@@ -5,21 +5,25 @@ from clients.binance import BinanceClient
 from clients.dydx import DydxClient
 from clients.apollox import ApolloxClient
 from clients.kraken import KrakenClient
-from config import Config
 
+import configparser
+import sys
+config = configparser.ConfigParser()
+config.read(sys.argv[1], "utf-8")
 
 class BaseTask:
     __slots__ = 'mq', 'clients'
 
     def __init__(self):
         self.mq = None
+
         self.clients = {
-            # BitmexClient(Config.BITMEX, Config.LEVERAGE),
-            'DYDX': DydxClient(Config.DYDX, Config.LEVERAGE),
-            'BINANCE': BinanceClient(Config.BINANCE, Config.LEVERAGE),
-            'APOLLOX': ApolloxClient(Config.APOLLOX, Config.LEVERAGE),
-            # OkxClient(Config.OKX, Config.LEVERAGE),
-            'KRAKEN': KrakenClient(Config.KRAKEN, Config.LEVERAGE)
+            # BitmexClient(config['BITMEX'], config['SETTINGS']['LEVERAGE']),
+            'DYDX': DydxClient(config['DYDX'], config['SETTINGS']['LEVERAGE']),
+            'BINANCE': BinanceClient(config['BINANCE'], config['SETTINGS']['LEVERAGE']),
+            'APOLLOX': ApolloxClient(config['APOLLOX'], config['SETTINGS']['LEVERAGE']),
+            # OkxClient(config['SETTINGS']OKX, config['SETTINGS']['LEVERAGE']),
+            'KRAKEN': KrakenClient(config['KRAKEN'], config['SETTINGS']['LEVERAGE'])
         }
 
     @staticmethod
@@ -35,8 +39,7 @@ class BaseTask:
         return True
 
     async def setup_mq(self, event_loop) -> None:
-        self.mq = await connect_robust(
-            f"amqp://{Config.RABBIT['username']}:{Config.RABBIT['password']}@{Config.RABBIT['host']}:"
-            f"{Config.RABBIT['port']}/", loop=event_loop
-        )
+        rabbit = config['RABBIT']
+        rabbit_url = f"amqp://{rabbit['USERNAME']}:{rabbit['PASSWORD']}@{rabbit['HOST']}:{rabbit['PORT']}/"
+        self.mq = await connect_robust(rabbit_url, loop=event_loop)
         print('SETUP MQ')

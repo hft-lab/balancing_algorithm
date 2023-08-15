@@ -5,10 +5,13 @@ import uuid
 
 import aiohttp
 
-from config import Config
 from core.base_task import BaseTask
 from clients.enums import PositionSideEnum, RabbitMqQueues
 
+import configparser
+import sys
+config = configparser.ConfigParser()
+config.read(sys.argv[1], "utf-8")
 
 class Balancing(BaseTask):
     __slots__ = 'clients', 'positions', 'total_position', 'disbalance_coin', \
@@ -24,9 +27,9 @@ class Balancing(BaseTask):
         # for client in self.clients:
         #     self.clients[client].run_updater()
         self.orderbooks = {}
-        self.chat_id = Config.TELEGRAM_CHAT_ID
-        self.telegram_bot = Config.TELEGRAM_TOKEN
-        self.env = Config.ENV
+        self.chat_id = config['TELEGRAM']['CHAT_ID']
+        self.telegram_bot = config['TELEGRAM']['TOKEN']
+        self.env = config['SETTINGS']['ENV']
 
         time.sleep(15)
 
@@ -52,7 +55,7 @@ class Balancing(BaseTask):
 
                 self.__set_default()
 
-                time.sleep(Config.TIMEOUT)
+                time.sleep(config['SETTINGS']['TIMEOUT'])
 
     def __set_default(self) -> None:
         self.positions = {}
@@ -95,9 +98,9 @@ class Balancing(BaseTask):
         message += f"COIN: {round(self.disbalance_coin, 4)}\n"
         message += f"USD: {round(self.disbalance_usd, 1)}"
         send_message = {
-            "chat_id": Config.TELEGRAM_CHAT_ID,
+            "chat_id": self.chat_id,
             "msg": message,
-            'bot_token': Config.TELEGRAM_TOKEN
+            'bot_token': self.telegram_bot
         }
         await self.publish_message(connect=self.mq,
                                    message=send_message,
@@ -124,7 +127,7 @@ class Balancing(BaseTask):
 
         self.__get_amount_for_all_clients(abs(self.disbalance_coin) / len(self.clients))
 
-        if abs(self.disbalance_usd) > Config.MIN_DISBALANCE:
+        if abs(self.disbalance_usd) > config['SETTINGS']['MIN_DISBALANCE']:
             self.side = 'sell' if self.disbalance_usd > 0 else 'buy'
             self.disbalance_id = uuid.uuid4()  # noqa
 
@@ -149,9 +152,9 @@ class Balancing(BaseTask):
         message += f"ORDER SIZE PER EXCHANGE: {client.expect_amount_coin}\n"
         message += f"NUMBER OF EXCHANGES: {len(self.clients.keys())}\n"
         send_message = {
-            "chat_id": Config.TELEGRAM_CHAT_ID,
+            "chat_id": self.chat_id,
             "msg": message,
-            'bot_token': Config.TELEGRAM_TOKEN
+            'bot_token': self.telegram_bot
         }
         await self.publish_message(connect=self.mq,
                                    message=send_message,
@@ -209,10 +212,10 @@ class Balancing(BaseTask):
         if client.LAST_ORDER_ID == 'default':
             coin = client.symbol.split('USD')[0].replace('-', '').replace('/', '')
             error_message = {
-                "chat_id": Config.TELEGRAM_CHAT_ID,
+                "chat_id": self.chat_id,
                 "msg": f"ALERT NAME: Order Mistake\nCOIN: {coin}\nCONTEXT: BOT\nENV: {self.env}\nEXCHANGE: "
                        f"{client.EXCHANGE_NAME}\nOrder Id:{order_id}\nError:{client.error_info}",
-                'bot_token': Config.TELEGRAM_TOKEN
+                'bot_token': self.telegram_bot
             }
             await self.publish_message(connect=self.mq,
                                        message=error_message,
@@ -238,7 +241,7 @@ class Balancing(BaseTask):
             'position_coin': self.disbalance_coin,
             'position_usd': round(self.disbalance_usd, 1),
             'price': self.average_price,
-            'threshold': Config.MIN_DISBALANCE,
+            'threshold': config['SETTINGS']['MIN_DISBALANCE'],
             'status': 'Processing'
         }
 
