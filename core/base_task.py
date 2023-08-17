@@ -18,12 +18,12 @@ class BaseTask:
         self.mq = None
 
         self.clients = {
-            # BitmexClient(config['BITMEX'], config['SETTINGS']['LEVERAGE']),
-            'DYDX': DydxClient(config['DYDX'], config['SETTINGS']['LEVERAGE']),
-            'BINANCE': BinanceClient(config['BINANCE'], config['SETTINGS']['LEVERAGE']),
-            'APOLLOX': ApolloxClient(config['APOLLOX'], config['SETTINGS']['LEVERAGE']),
-            # OkxClient(config['SETTINGS']OKX, config['SETTINGS']['LEVERAGE']),
-            'KRAKEN': KrakenClient(config['KRAKEN'], config['SETTINGS']['LEVERAGE'])
+            # BitmexClient(config['BITMEX'], float(config['SETTINGS']['LEVERAGE'])),
+            'DYDX': DydxClient(config['DYDX'], float(config['SETTINGS']['LEVERAGE'])),
+            'BINANCE': BinanceClient(config['BINANCE'], float(config['SETTINGS']['LEVERAGE'])),
+            'APOLLOX': ApolloxClient(config['APOLLOX'], float(config['SETTINGS']['LEVERAGE'])),
+            # OkxClient(config['SETTINGS']OKX, float(config['SETTINGS']['LEVERAGE'])),
+            'KRAKEN': KrakenClient(config['KRAKEN'], float(config['SETTINGS']['LEVERAGE']))
         }
 
     @staticmethod

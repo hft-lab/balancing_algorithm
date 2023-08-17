@@ -3,6 +3,8 @@ import asyncio
 import logging
 import traceback
 from logging.config import dictConfig
+import time
+import random
 
 import orjson
 from aio_pika import connect_robust
@@ -39,6 +41,7 @@ class Consumer:
     """
 
     def __init__(self, loop, queue=None):
+        time.sleep(random.randint(1, 10))
         self.app = Application()
         self.loop = loop
         self.queue = queue
@@ -85,16 +88,77 @@ class Consumer:
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-q', nargs='?', const=True, dest='queue', default='logger.periodic.get_missed_orders')
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('-q', nargs='?', const=True, dest='queue', default='logger.periodic.get_missed_orders')
+    # args = parser.parse_args()
+    import threading
+    import multiprocessing
 
-    loop = asyncio.get_event_loop()
+    def async_process(queue):
+        loop = asyncio.get_event_loop()
+        asyncio.set_event_loop(loop)
 
-    worker = Consumer(loop, queue=args.queue.strip())
-    loop.run_until_complete(worker.run())
+        worker = Consumer(loop, queue=queue)
+        loop.run_until_complete(worker.run())
+        try:
+            loop.run_forever()
+        except Exception:
+            traceback.print_exc()
+        finally:
+            loop.close()
 
-    try:
-        loop.run_forever()
-    finally:
-        loop.close()
+
+    if __name__ == '__main__':
+        queues = config['SETTINGS']['QUEUES'].split(',')
+
+        processes = []
+        for queue in queues:
+            process = multiprocessing.Process(target=async_process, args=(queue,))
+            processes.append(process)
+            process.start()
+
+        for process in processes:
+            process.join()
+
+    # def main_loop(queue):
+    #     try:
+    #         loop = asyncio.get_event_loop()
+    #
+    #         worker = Consumer(loop, queue=queue)
+    #         loop.run_until_complete(worker.run())
+    #
+    #         # You can add other tasks or logic here
+    #
+    #     except Exception:
+    #         traceback.print_exc()
+
+
+    # Run the main loop multiple times
+    # for queue in queues:
+    #     main_loop(queue)
+    # threads = []
+
+    # #
+
+    # # #
+    # # #
+    # # # asyncio.run(main())
+    # # for queue in queues:
+    # #     asyncio.run(process_queue(queue))
+    # self.loop_1 = asyncio.new_event_loop()
+    # t1 = threading.Thread(target=self.run_await_in_thread, args=[self.__start, self.loop_1])
+    # t1.start()
+    # t1.join(0-9)
+    #
+    # loop = asyncio.get_event_loop()
+    #
+    # worker = Consumer(loop, queue=queues[0])
+    # loop.run_until_complete(worker.run())
+    #
+    # try:
+    #     loop.run_forever()
+    # except Exception:
+    #     traceback.print_exc()
+    # finally:
+    #     loop.close()
+

@@ -13,6 +13,7 @@ import sys
 config = configparser.ConfigParser()
 config.read(sys.argv[1], "utf-8")
 
+
 class Balancing(BaseTask):
     __slots__ = 'clients', 'positions', 'total_position', 'disbalance_coin', \
         'disbalance_usd', 'side', 'mq', 'session', 'open_orders', 'app', \
@@ -55,7 +56,7 @@ class Balancing(BaseTask):
 
                 self.__set_default()
 
-                time.sleep(config['SETTINGS']['TIMEOUT'])
+                time.sleep(int(config['SETTINGS']['TIMEOUT']))
 
     def __set_default(self) -> None:
         self.positions = {}
@@ -127,7 +128,7 @@ class Balancing(BaseTask):
 
         self.__get_amount_for_all_clients(abs(self.disbalance_coin) / len(self.clients))
 
-        if abs(self.disbalance_usd) > config['SETTINGS']['MIN_DISBALANCE']:
+        if abs(self.disbalance_usd) > int(config['SETTINGS']['MIN_DISBALANCE']):
             self.side = 'sell' if self.disbalance_usd > 0 else 'buy'
             self.disbalance_id = uuid.uuid4()  # noqa
 
