@@ -18,7 +18,7 @@ class Balancing(BaseTask):
     __slots__ = 'clients', 'positions', 'total_position', 'disbalance_coin', \
         'disbalance_usd', 'side', 'mq', 'session', 'open_orders', 'app', \
         'chat_id', 'telegram_bot', 'env', 'disbalance_id', 'average_price', \
-        'orderbooks'# noqa
+        'orderbooks', 'coin'# noqa
 
     def __init__(self):
         super().__init__()
@@ -31,6 +31,7 @@ class Balancing(BaseTask):
         self.chat_id = config['TELEGRAM']['CHAT_ID']
         self.telegram_bot = config['TELEGRAM']['TOKEN']
         self.env = config['SETTINGS']['ENV']
+        self.coin = config['SETTINGS']['GLOBAL_SYMBOL']
 
         time.sleep(15)
 
@@ -43,6 +44,7 @@ class Balancing(BaseTask):
                     for exchange, client in self.clients.items():
                         self.orderbooks.update({exchange: await client.get_orderbook_by_symbol()})
                         client.get_position()
+                        print(f"UPDATED POSITION\n{exchange}: {client.get_positions()}")
                 except Exception as e:
                     print(f"Line 45 balancing.py. {e}")
                     time.sleep(60)
@@ -79,25 +81,33 @@ class Balancing(BaseTask):
 
     async def __get_total_positions(self) -> None:
         positions = {'long': {'coin': 0, 'usd': 0}, 'short': {'coin': 0, 'usd': 0}}
-        message = f'POSITIONS:\n'
-        for ecx_name, position in self.positions.items():
-            coin = self.clients[ecx_name].symbol
-            message += f"{ecx_name}, {coin}: {round(position['amount'], 4)} | {round(position['amount_usd'], 1)} USD\n"
+        message = f'    POSITIONS:'
+        for exc_name, position in self.positions.items():
+            pos = round(position['amount'], 4)
+            pos_usd = int(round(position['amount'] * self.average_price, 0))
+            message += f"\n{exc_name}, {self.coin} | USD:\n  {pos} | {pos_usd}"
             if position and position.get('side') == PositionSideEnum.LONG:
                 positions['long']['coin'] += position['amount']
-                positions['long']['usd'] += position['amount_usd']
+                positions['long']['usd'] += pos_usd
             elif position and position.get('side') == PositionSideEnum.SHORT:
                 positions['short']['coin'] += position['amount']
-                positions['short']['usd'] += position['amount_usd']
+                positions['short']['usd'] += pos_usd
 
         self.disbalance_coin = positions['long']['coin'] + positions['short']['coin']  # noqa
         self.disbalance_usd = positions['long']['usd'] + positions['short']['usd']  # noqa
         await self.send_positions_message(message)
 
     async def send_positions_message(self, message):
-        message += f"\nDISBALANCE:\n"
-        message += f"COIN: {round(self.disbalance_coin, 4)}\n"
-        message += f"USD: {round(self.disbalance_usd, 1)}"
+        total_balance = 0
+        message += f"\n    BALANCES:"
+        for exc_name, client in self.clients.items():
+            exc_bal = client.get_real_balance()
+            message += f"\n{exc_name}, USD: {int(round(exc_bal, 0))}"
+            total_balance += exc_bal
+        message += f"\n    TOTAL:"
+        message += f"\nBALANCE, USD: {int(round(total_balance, 0))}"
+        message += f"\nDISBALANCE, {self.coin}: {round(self.disbalance_coin, 4)}"
+        message += f"\nDISBALANCE, USD: {int(round(self.disbalance_usd, 0))}"
         send_message = {
             "chat_id": self.chat_id,
             "msg": message,
