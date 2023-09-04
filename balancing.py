@@ -252,7 +252,7 @@ class Balancing(BaseTask):
             'position_coin': self.disbalance_coin,
             'position_usd': round(self.disbalance_usd, 1),
             'price': self.average_price,
-            'threshold': config['SETTINGS']['MIN_DISBALANCE'],
+            'threshold': float(config['SETTINGS']['MIN_DISBALANCE']),
             'status': 'Processing'
         }
 
