@@ -38,7 +38,7 @@ class CheckBalance(BaseTask):
             await self.__save_balance(client, balance_id)
 
             for symbol in client.get_positions():
-                client.orderbook[client.symbol] = await client.get_orderbook_by_symbol(symbol)
+                client.orderbook[symbol] = await client.get_orderbook_by_symbol(symbol)
                 await self.__save_balance_detalization(symbol, client, balance_id)
 
     async def __save_balance(self, client, balance_id) -> None:

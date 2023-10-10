@@ -46,8 +46,8 @@ class Balancing(BaseTask):
                         self.orderbooks.update({exchange: {}})
                         for symbol, pos in client.get_positions().items():
                             self.orderbooks[exchange].update({symbol: await client.get_orderbook_by_symbol(symbol)})
-                        print(f"UPDATED POSITION\n{exchange}: {client.get_positions()}")
-                    print(f"UPDATED ORDERBOOKS:\n{self.orderbooks}")
+                        # print(f"UPDATED POSITION\n{exchange}: {client.get_positions()}")
+                    # print(f"UPDATED ORDERBOOKS:\n{self.orderbooks}")
                 except Exception as e:
                     print(f"Line 45 balancing.py. {e}")
                     time.sleep(60)
@@ -73,7 +73,7 @@ class Balancing(BaseTask):
 
     async def __get_positions(self) -> None:
         for client_name, client in self.clients.items():
-            for symbol, position in client.get_positions():
+            for symbol, position in client.get_positions().items():
                 coin = self.get_coin(symbol)
                 orderbook = self.orderbooks[client_name][symbol]
                 position.update({'mark_price': (orderbook['asks'][0][0] + orderbook['bids'][0][0]) / 2,
@@ -129,8 +129,9 @@ class Balancing(BaseTask):
         message += f"\n    TOTAL:"
         message += f"\nBALANCE, USD: {int(round(total_balance, 0))}"
         for coin, disbalance in self.disbalances.items():
-            message += f"\nDISBALANCE, {coin}: {round(disbalance['coin'], 4)}"
-            message += f"\nDISBALANCE, USD: {int(round(disbalance['usd'], 0))}"
+            if disbalance['usd'] > 0:
+                message += f"\nDISBALANCE, {coin}: {round(disbalance['coin'], 4)}"
+                message += f"\nDISBALANCE, USD: {int(round(disbalance['usd'], 0))}"
         send_message = {
             "chat_id": self.chat_id,
             "msg": message,
