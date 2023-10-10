@@ -11,19 +11,23 @@ import sys
 config = configparser.ConfigParser()
 config.read(sys.argv[1], "utf-8")
 
+leverage = float(config['SETTINGS']['LEVERAGE'])
+
+
 class BaseTask:
-    __slots__ = 'mq', 'clients'
+    __slots__ = 'mq', 'clients', 'alert_id', 'alert_token'
 
     def __init__(self):
         self.mq = None
-
+        self.alert_id = config['TELEGRAM']['ALERT_CHAT_ID']
+        self.alert_token = config['TELEGRAM']['ALERT_BOT_TOKEN']
         self.clients = {
-            # BitmexClient(config['BITMEX'], float(config['SETTINGS']['LEVERAGE'])),
-            'DYDX': DydxClient(config['DYDX'], float(config['SETTINGS']['LEVERAGE'])),
-            'BINANCE': BinanceClient(config['BINANCE'], float(config['SETTINGS']['LEVERAGE'])),
-            'APOLLOX': ApolloxClient(config['APOLLOX'], float(config['SETTINGS']['LEVERAGE'])),
-            # OkxClient(config['SETTINGS']OKX, float(config['SETTINGS']['LEVERAGE'])),
-            'KRAKEN': KrakenClient(config['KRAKEN'], float(config['SETTINGS']['LEVERAGE']))
+            # BitmexClient(config['BITMEX'], leverage, self.alert_id, self.alert_token),
+            'DYDX': DydxClient(config['DYDX'], leverage, self.alert_id, self.alert_token),
+            'BINANCE': BinanceClient(config['BINANCE'], leverage, self.alert_id, self.alert_token),
+            'APOLLOX': ApolloxClient(config['APOLLOX'], leverage, self.alert_id, self.alert_token),
+            # OkxClient(config['SETTINGS']OKX, leverage, self.alert_id, self.alert_token),
+            'KRAKEN': KrakenClient(config['KRAKEN'], leverage, self.alert_id, self.alert_token)
         }
 
     @staticmethod

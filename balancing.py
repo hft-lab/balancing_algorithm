@@ -15,10 +15,10 @@ config.read(sys.argv[1], "utf-8")
 
 
 class Balancing(BaseTask):
-    __slots__ = 'clients', 'positions', 'total_position', 'disbalance_coin', \
-        'disbalance_usd', 'side', 'mq', 'session', 'open_orders', 'app', \
+    __slots__ = 'clients', 'positions', 'total_position', 'disbalances', \
+        'side', 'mq', 'session', 'open_orders', 'app', \
         'chat_id', 'telegram_bot', 'env', 'disbalance_id', 'average_price', \
-        'orderbooks'# noqa
+        'orderbooks', 'coin'# noqa
 
     def __init__(self):
         super().__init__()
@@ -31,6 +31,7 @@ class Balancing(BaseTask):
         self.chat_id = config['TELEGRAM']['CHAT_ID']
         self.telegram_bot = config['TELEGRAM']['TOKEN']
         self.env = config['SETTINGS']['ENV']
+        self.coin = config['SETTINGS']['GLOBAL_SYMBOL']
 
         time.sleep(15)
 
@@ -41,8 +42,12 @@ class Balancing(BaseTask):
                 await self.setup_mq(loop)
                 try:
                     for exchange, client in self.clients.items():
-                        self.orderbooks.update({exchange: await client.get_orderbook_by_symbol()})
                         client.get_position()
+                        self.orderbooks.update({exchange: {}})
+                        for symbol, pos in client.get_positions().items():
+                            self.orderbooks[exchange].update({symbol: await client.get_orderbook_by_symbol(symbol)})
+                        print(f"UPDATED POSITION\n{exchange}: {client.get_positions()}")
+                    print(f"UPDATED ORDERBOOKS:\n{self.orderbooks}")
                 except Exception as e:
                     print(f"Line 45 balancing.py. {e}")
                     time.sleep(60)
@@ -62,42 +67,70 @@ class Balancing(BaseTask):
         self.positions = {}
         self.open_orders = {}
         self.total_position = 0
-        self.disbalance_coin = 0
-        self.disbalance_usd = 0
+        self.disbalances = {}
         self.disbalance_id = uuid.uuid4()
         self.side = 'LONG'
 
     async def __get_positions(self) -> None:
-        prices = []
         for client_name, client in self.clients.items():
-            self.positions[client.EXCHANGE_NAME] = client.get_positions().get(client.symbol, {})
-            orderbook = self.orderbooks[client_name]
-            prices.append((orderbook['asks'][0][0] + orderbook['bids'][0][0]) / 2)
+            for symbol, position in client.get_positions():
+                coin = self.get_coin(symbol)
+                orderbook = self.orderbooks[client_name][symbol]
+                position.update({'mark_price': (orderbook['asks'][0][0] + orderbook['bids'][0][0]) / 2,
+                                 'top_ask': orderbook['asks'][0][0],
+                                 'top_bid': orderbook['bids'][0][0],
+                                 'symbol': symbol})
+                if not self.positions.get(coin):
+                    self.positions.update({coin: {client_name: position}})
+                else:
+                    self.positions[coin].update({client_name: position})
+        print(f'{self.positions=}')
 
-        self.average_price = sum(prices) / len(prices)
-        # print(f'{self.positions=}')
+    @staticmethod
+    def get_coin(symbol):
+        coin = ''
+        if '_' in symbol:
+            coin = symbol.split('_')[1].upper().split('USD')[0]
+        elif '-' in symbol:
+            coin = symbol.split('-')[0]
+        elif 'USDT' in symbol:
+            coin = symbol.split('USD')[0]
+        return coin
 
     async def __get_total_positions(self) -> None:
-        positions = {'long': {'coin': 0, 'usd': 0}, 'short': {'coin': 0, 'usd': 0}}
-        message = f'POSITIONS:\n'
-        for ecx_name, position in self.positions.items():
-            coin = self.clients[ecx_name].symbol
-            message += f"{ecx_name}, {coin}: {round(position['amount'], 4)} | {round(position['amount_usd'], 1)} USD\n"
-            if position and position.get('side') == PositionSideEnum.LONG:
-                positions['long']['coin'] += position['amount']
-                positions['long']['usd'] += position['amount_usd']
-            elif position and position.get('side') == PositionSideEnum.SHORT:
-                positions['short']['coin'] += position['amount']
-                positions['short']['usd'] += position['amount_usd']
-
-        self.disbalance_coin = positions['long']['coin'] + positions['short']['coin']  # noqa
-        self.disbalance_usd = positions['long']['usd'] + positions['short']['usd']  # noqa
+        positions = {}
+        message = f'    POSITIONS:'
+        for coin, exchanges in self.positions.items():
+            positions.update({coin: {'long': {'coin': 0, 'usd': 0}, 'short': {'coin': 0, 'usd': 0}}})
+            self.disbalances.update({coin: {}})
+            for exchange, position in exchanges.items():
+                pos = round(position['amount'], 4)
+                pos_usd = int(round(position['amount'] * position['mark_price'], 0))
+                message += f"\n{exchange}, {coin} | USD:\n  {pos} | {pos_usd}"
+                if position and position.get('side') == PositionSideEnum.LONG:
+                    positions[coin]['long']['coin'] += position['amount']
+                    positions[coin]['long']['usd'] += pos_usd
+                elif position and position.get('side') == PositionSideEnum.SHORT:
+                    positions[coin]['short']['coin'] += position['amount']
+                    positions[coin]['short']['usd'] += pos_usd
+            disb_coin = positions[coin]['long']['coin'] + positions[coin]['short']['coin']
+            disb_usd = positions[coin]['long']['usd'] + positions[coin]['short']['usd']
+            self.disbalances[coin].update({'coin': disb_coin})  # noqa
+            self.disbalances[coin].update({'usd': disb_usd})
         await self.send_positions_message(message)
 
     async def send_positions_message(self, message):
-        message += f"\nDISBALANCE:\n"
-        message += f"COIN: {round(self.disbalance_coin, 4)}\n"
-        message += f"USD: {round(self.disbalance_usd, 1)}"
+        total_balance = 0
+        message += f"\n    BALANCES:"
+        for exc_name, client in self.clients.items():
+            exc_bal = client.get_real_balance()
+            message += f"\n{exc_name}, USD: {int(round(exc_bal, 0))}"
+            total_balance += exc_bal
+        message += f"\n    TOTAL:"
+        message += f"\nBALANCE, USD: {int(round(total_balance, 0))}"
+        for coin, disbalance in self.disbalances.items():
+            message += f"\nDISBALANCE, {coin}: {round(disbalance['coin'], 4)}"
+            message += f"\nDISBALANCE, USD: {int(round(disbalance['usd'], 0))}"
         send_message = {
             "chat_id": self.chat_id,
             "msg": message,
@@ -113,9 +146,11 @@ class Balancing(BaseTask):
         for _, client in self.clients.items():
             client.cancel_all_orders()
 
-    def __get_amount_for_all_clients(self, amount):
-        for client in self.clients.values():
-            client.fit_amount(amount)
+    def __get_amount_for_all_clients(self, amount, exchanges, coin, side):
+        for exchange in exchanges:
+            position = self.positions[coin][exchange]
+            price = position['top_ask'] if side == 'buy' else position['top_bid']
+            self.clients[exchange].fit_sizes(amount, price, position['symbol'])
 
         # max_amount = max([client.expect_amount_coin for client in self.clients.values()])
         #
@@ -125,33 +160,34 @@ class Balancing(BaseTask):
     async def __balancing_positions(self, session) -> None:
         tasks = []
         tasks_data = {}
+        for coin, disbalance in self.disbalances.items():
+            exchanges = list(self.positions[coin].keys())
+            if abs(disbalance['usd']) > int(config['SETTINGS']['MIN_DISBALANCE']):
+                self.side = 'sell' if disbalance['usd'] > 0 else 'buy'
+                self.disbalance_id = uuid.uuid4()  # noqa
+            else:
+                continue
+            self.__get_amount_for_all_clients(abs(disbalance['coin']) / len(exchanges), exchanges, coin, self.side)
+            for exchange in exchanges:
+                symbol = self.positions[coin][exchange]['symbol']
+                client_id = f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"
+                tasks.append(self.clients[exchange].create_order(symbol=symbol,
+                                                                 side=self.side,
+                                                                 session=session,
+                                                                 client_id=client_id))
+                tasks_data.update({exchange: {'order_place_time': int(time.time() * 1000)}})
 
-        self.__get_amount_for_all_clients(abs(self.disbalance_coin) / len(self.clients))
-
-        if abs(self.disbalance_usd) > int(config['SETTINGS']['MIN_DISBALANCE']):
-            self.side = 'sell' if self.disbalance_usd > 0 else 'buy'
-            self.disbalance_id = uuid.uuid4()  # noqa
-
-            for client_name, client in self.clients.items():
-                ask_or_bid = 'bids' if self.side == 'LONG' else 'asks'
-                price = self.orderbooks[client_name][ask_or_bid][0][0]
-                if client.get_available_balance(self.side) >= client.expect_amount_coin:
-                    client_id = f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"
-                    tasks.append(client.create_order(side=self.side,
-                                                     price=price,
-                                                     session=session,
-                                                     client_id=client_id))
-                    tasks_data.update({client_name: {'price': price, 'order_place_time': int(time.time() * 1000)}})
-
-            await self.__place_and_save_orders(tasks, tasks_data, client.expect_amount_coin)
-            await self.save_disbalance()
+            await self.__place_and_save_orders(tasks, tasks_data, coin)
+            await self.save_disbalance(coin, self.clients[exchanges[0]])
             await self.save_balance()
-            await self.send_balancing_message(client)
+            await self.send_balancing_message(exchanges, coin)
 
-    async def send_balancing_message(self, client):
+    async def send_balancing_message(self, exchanges, coin):
         message = 'BALANCING PROCEED:\n'
-        message += f"ORDER SIZE PER EXCHANGE: {client.expect_amount_coin}\n"
-        message += f"NUMBER OF EXCHANGES: {len(self.clients.keys())}\n"
+        message += f"COIN: {coin}\n"
+        message += f"ORDER SIZE PER EXCHANGE: {self.clients[exchanges[0]].amount}\n"
+        message += f"EXCHANGES: {'|'.join(exchanges)}\n"
+
         send_message = {
             "chat_id": self.chat_id,
             "msg": message,
@@ -163,11 +199,15 @@ class Balancing(BaseTask):
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.TELEGRAM),
                                    queue_name=RabbitMqQueues.TELEGRAM)
 
-    async def __place_and_save_orders(self, tasks, tasks_data, amount) -> None:
+    async def __place_and_save_orders(self, tasks, tasks_data, coin) -> None:
         for res in await asyncio.gather(*tasks, return_exceptions=True):
             exchange = res['exchange_name']
             order_place_time = res['timestamp'] - tasks_data[exchange]['order_place_time']
-            await self.save_orders(self.clients[exchange], tasks_data[exchange]['price'], amount, order_place_time)
+            await self.save_orders(self.clients[exchange],
+                                   self.clients[exchange].price,
+                                   self.clients[exchange].amount,
+                                   order_place_time,
+                                   coin)
 
     async def save_balance(self) -> None:
         message = {
@@ -184,7 +224,7 @@ class Balancing(BaseTask):
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.CHECK_BALANCE),
                                    queue_name=RabbitMqQueues.CHECK_BALANCE)
 
-    async def save_orders(self, client, expect_price, amount, order_place_time) -> None:
+    async def save_orders(self, client, expect_price, amount, order_place_time, coin) -> None:
         order_id = uuid.uuid4()
         message = {
             'id': order_id,
@@ -197,10 +237,10 @@ class Balancing(BaseTask):
             'status': 'Processing',
             'exchange': client.EXCHANGE_NAME,
             'side': self.side,
-            'symbol': client.symbol,
-            'expect_price': client.expect_price,
-            'expect_amount_coin': client.expect_amount_coin,
-            'expect_amount_usd': client.expect_amount_coin * client.expect_price,
+            'symbol': self.positions[coin][client.EXCHANGE_NAME]['symbol'],
+            'expect_price': client.price,
+            'expect_amount_coin': client.amount,
+            'expect_amount_usd': client.amount * client.price,
             'expect_fee': client.taker_fee * (amount * expect_price),
             'factual_price': 0,
             'factual_amount_coin': 0,
@@ -211,7 +251,6 @@ class Balancing(BaseTask):
         }
 
         if client.LAST_ORDER_ID == 'default':
-            coin = client.symbol.split('USD')[0].replace('-', '').replace('/', '')
             error_message = {
                 "chat_id": self.chat_id,
                 "msg": f"ALERT NAME: Order Mistake\nCOIN: {coin}\nCONTEXT: BOT\nENV: {self.env}\nEXCHANGE: "
@@ -233,16 +272,16 @@ class Balancing(BaseTask):
 
         client.LAST_ORDER_ID = 'default'
 
-    async def save_disbalance(self):
+    async def save_disbalance(self, coin, client):
         message = {
             'id': self.disbalance_id,
             'datetime': datetime.datetime.utcnow(),
             'ts': int(time.time() * 1000),
-            'coin_name': self.clients['BINANCE'].symbol,
-            'position_coin': self.disbalance_coin,
-            'position_usd': round(self.disbalance_usd, 1),
-            'price': self.average_price,
-            'threshold': config['SETTINGS']['MIN_DISBALANCE'],
+            'coin_name': coin,
+            'position_coin': self.disbalances[coin]['coin'],
+            'position_usd': round(self.disbalances[coin]['usd'], 1),
+            'price': client.price,
+            'threshold': float(config['SETTINGS']['MIN_DISBALANCE']),
             'status': 'Processing'
         }
 
