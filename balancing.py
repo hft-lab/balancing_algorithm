@@ -124,10 +124,6 @@ class Balancing(BaseTask):
         message += f"\n    BALANCES:"
         for exc_name, client in self.clients.items():
             exc_bal = client.get_balance()
-            for coin, exchanges in self.positions.items():
-                for exchange, position in exchanges.items():
-                    if exchange == exc_name:
-                        exc_bal += position['unrealized_pnl_usd']
             message += f"\n{exc_name}, USD: {int(round(exc_bal, 0))}"
             total_balance += exc_bal
         message += f"\n    TOTAL:"
