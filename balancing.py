@@ -10,15 +10,16 @@ from clients.enums import PositionSideEnum, RabbitMqQueues
 
 import configparser
 import sys
+
 config = configparser.ConfigParser()
 config.read(sys.argv[1], "utf-8")
 
 
 class Balancing(BaseTask):
     __slots__ = 'clients', 'positions', 'total_position', 'disbalances', \
-        'side', 'mq', 'session', 'open_orders', 'app', \
-        'chat_id', 'telegram_bot', 'env', 'disbalance_id', 'average_price', \
-        'orderbooks', 'coin'# noqa
+                'side', 'mq', 'session', 'open_orders', 'app', \
+                'chat_id', 'telegram_bot', 'env', 'disbalance_id', 'average_price', \
+                'orderbooks', 'coin'  # noqa
 
     def __init__(self):
         super().__init__()
@@ -55,6 +56,7 @@ class Balancing(BaseTask):
                 await self.__close_all_open_orders()
                 await self.__get_positions()
                 await self.__get_total_positions()
+                await self.send_positions_message(self.create_positions_message())
                 await self.__balancing_positions(session)
                 await self.mq.close()
                 print(f"MQ CLOSED")
@@ -84,7 +86,6 @@ class Balancing(BaseTask):
                     self.positions.update({coin: {client_name: position}})
                 else:
                     self.positions[coin].update({client_name: position})
-        print(f'{self.positions=}')
 
     @staticmethod
     def get_coin(symbol):
@@ -99,14 +100,11 @@ class Balancing(BaseTask):
 
     async def __get_total_positions(self) -> None:
         positions = {}
-        message = f'    POSITIONS:'
         for coin, exchanges in self.positions.items():
             positions.update({coin: {'long': {'coin': 0, 'usd': 0}, 'short': {'coin': 0, 'usd': 0}}})
             self.disbalances.update({coin: {}})
             for exchange, position in exchanges.items():
-                pos = round(position['amount'], 4)
                 pos_usd = int(round(position['amount'] * position['mark_price'], 0))
-                message += f"\n{exchange}, {coin} | USD:\n  {pos} | {pos_usd}"
                 if position and position.get('side') == PositionSideEnum.LONG:
                     positions[coin]['long']['coin'] += position['amount']
                     positions[coin]['long']['usd'] += pos_usd
@@ -117,9 +115,33 @@ class Balancing(BaseTask):
             disb_usd = positions[coin]['long']['usd'] + positions[coin]['short']['usd']
             self.disbalances[coin].update({'coin': disb_coin})  # noqa
             self.disbalances[coin].update({'usd': disb_usd})
-        await self.send_positions_message(message)
 
-    async def send_positions_message(self, message):
+    def create_positions_message(self):
+        refactored_positions = {}
+        for coin, exchanges in self.positions.items():
+            for exchange, position in exchanges.items():
+                if refactored_positions.get(exchange):
+                    refactored_positions[exchange]['total_position'] += int(round(position['amount_usd']))
+                    refactored_positions[exchange]['abs_position'] += abs(int(round(position['amount_usd'])))
+                    refactored_positions[exchange]['num_positions'] += 1
+                else:
+                    refactored_positions.update({exchange:
+                                                     {'total_position': int(round(position['amount_usd'])),
+                                                      'abs_position': abs(int(round(position['amount_usd']))),
+                                                      'num_positions': 1}})
+        return self.compose_message(refactored_positions)
+
+    def compose_message(self, refactored_positions):
+        tot_pos = 0
+        abs_pos = 0
+        message = "    POSITIONS:"
+        for exchange, data in refactored_positions.items():
+            tot_pos += data['total_position']
+            abs_pos += data['abs_position']
+            message += f"\n  {exchange}"
+            message += f"\nTOT POS, USD: {data['total_position']}"
+            message += f"\nABS POS, USD: {data['abs_position']}"
+            message += f"\nPOSITIONS, NUM: {data['num_positions']}"
         total_balance = 0
         message += f"\n    BALANCES:"
         for exc_name, client in self.clients.items():
@@ -128,10 +150,16 @@ class Balancing(BaseTask):
             total_balance += exc_bal
         message += f"\n    TOTAL:"
         message += f"\nBALANCE, USD: {int(round(total_balance, 0))}"
+        message += f"\nTOT POSITION, USD: {tot_pos}"
+        message += f"\nABS POSITION, USD: {abs_pos}"
+        message += f"\nEFFECTIVE LEVERAGE: {round(abs_pos / total_balance, 2)}"
         for coin, disbalance in self.disbalances.items():
             if disbalance['usd'] > 0:
                 message += f"\nDISBALANCE, {coin}: {round(disbalance['coin'], 4)}"
                 message += f"\nDISBALANCE, USD: {int(round(disbalance['usd'], 0))}"
+        return message
+
+    async def send_positions_message(self, message):
         send_message = {
             "chat_id": self.chat_id,
             "msg": message,
