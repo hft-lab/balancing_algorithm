@@ -155,8 +155,8 @@ class Balancing(BaseTask):
         message += f"\nEFFECTIVE LEVERAGE: {round(abs_pos / total_balance, 2)}"
         for coin, disbalance in self.disbalances.items():
             if abs(disbalance['usd']) > 0:
-                message += f"\nDISBALANCE, {coin}: {round(disbalance['coin'], 4)}"
-                message += f"\n(USD: {int(round(disbalance['usd'], 0))})"
+                message += f"\nDISB, {coin}: {round(disbalance['coin'], 4)}"
+                message += f" (USD: {int(round(disbalance['usd'], 0))})"
         return message
 
     async def send_positions_message(self, message):
