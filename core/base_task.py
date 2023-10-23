@@ -24,8 +24,8 @@ class BaseTask:
         self.clients = {
             # BitmexClient(config['BITMEX'], leverage, self.alert_id, self.alert_token),
             'DYDX': DydxClient(config['DYDX'], leverage, self.alert_id, self.alert_token),
-            'BINANCE': BinanceClient(config['BINANCE'], leverage, self.alert_id, self.alert_token),
-            'APOLLOX': ApolloxClient(config['APOLLOX'], leverage, self.alert_id, self.alert_token),
+            # 'BINANCE': BinanceClient(config['BINANCE'], leverage, self.alert_id, self.alert_token),
+            # 'APOLLOX': ApolloxClient(config['APOLLOX'], leverage, self.alert_id, self.alert_token),
             # OkxClient(config['SETTINGS']OKX, leverage, self.alert_id, self.alert_token),
             'KRAKEN': KrakenClient(config['KRAKEN'], leverage, self.alert_id, self.alert_token)
         }
