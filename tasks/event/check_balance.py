@@ -68,8 +68,8 @@ class CheckBalance(BaseTask):
 
     async def __save_balance_detalization(self, symbol, client, parent_id):
         client_position_by_symbol = client.get_positions()[symbol]
-        mark_price = (client.get_orderbook()[symbol]['asks'][0][0] +
-                      client.get_orderbook()[symbol]['bids'][0][0]) / 2
+        mark_price = (client.get_orderbook(symbol)['asks'][0][0] +
+                      client.get_orderbook(symbol)['bids'][0][0]) / 2
         position_usd = round(client_position_by_symbol['amount'] * mark_price, 1)
         real_balance = client.get_balance()
         message = {
