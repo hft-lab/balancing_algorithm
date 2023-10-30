@@ -5,6 +5,7 @@ from clients.binance import BinanceClient
 from clients.dydx import DydxClient
 from clients.apollox import ApolloxClient
 from clients.kraken import KrakenClient
+from clients.okx import OkxClient
 
 import configparser
 import sys
@@ -26,7 +27,7 @@ class BaseTask:
             'DYDX': DydxClient(config['DYDX'], leverage, self.alert_id, self.alert_token),
             # 'BINANCE': BinanceClient(config['BINANCE'], leverage, self.alert_id, self.alert_token),
             # 'APOLLOX': ApolloxClient(config['APOLLOX'], leverage, self.alert_id, self.alert_token),
-            # OkxClient(config['SETTINGS']OKX, leverage, self.alert_id, self.alert_token),
+            'OKX': OkxClient(config['OKX'], leverage, self.alert_id, self.alert_token),
             'KRAKEN': KrakenClient(config['KRAKEN'], leverage, self.alert_id, self.alert_token)
         }
 
