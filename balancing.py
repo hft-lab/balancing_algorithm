@@ -218,7 +218,7 @@ class Balancing(BaseTask):
         message = 'BALANCING PROCEED:\n'
         message += f"COIN: {coin}\n"
         message += f"SIDE: {side}\n"
-        message += f"ORDER SIZE PER EXCHANGE: {self.clients[exchanges[0]].amount}\n"
+        message += f"ORDER SIZE PER EXCHANGE, {coin}: {self.clients[exchanges[0]].amount}\n"
         message += f"EXCHANGES: {'|'.join(exchanges)}\n"
         send_message = {
             "chat_id": self.chat_id,
