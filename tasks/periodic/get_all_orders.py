@@ -1,6 +1,6 @@
 import aiohttp
 
-from clients.enums import RabbitMqQueues
+from core.enums import RabbitMqQueues
 from core.base_task import BaseTask
 
 

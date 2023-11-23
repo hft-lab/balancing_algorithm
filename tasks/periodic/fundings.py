@@ -4,7 +4,7 @@ import uuid
 import aiohttp
 
 from core.base_task import BaseTask
-from clients.enums import RabbitMqQueues
+from core.enums import RabbitMqQueues
 
 import configparser
 import sys

@@ -17,7 +17,7 @@ class Balancing(BaseTask):
     __slots__ = 'clients', 'positions', 'total_position', 'disbalances', \
                 'side', 'mq', 'session', 'open_orders', 'app', \
                 'chat_id', 'telegram_bot', 'env', 'disbalance_id', 'average_price', \
-                'orderbooks', 'coin'  # noqa
+                'orderbooks' # noqa
 
     def __init__(self):
         super().__init__()
@@ -30,7 +30,6 @@ class Balancing(BaseTask):
         self.chat_id = config['TELEGRAM']['CHAT_ID']
         self.telegram_bot = config['TELEGRAM']['TOKEN']
         self.env = config['SETTINGS']['ENV']
-        self.coin = config['SETTINGS']['GLOBAL_SYMBOL']
         time.sleep(15)
 
     async def run(self, loop) -> None:

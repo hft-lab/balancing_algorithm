@@ -3,7 +3,7 @@ import time
 import uuid
 from datetime import datetime
 
-from clients.enums import RabbitMqQueues
+from core.enums import RabbitMqQueues
 from core.base_task import BaseTask
 
 
