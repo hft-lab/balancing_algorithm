@@ -3,8 +3,9 @@ import time
 import datetime
 import uuid
 import aiohttp
-from core.base_task import BaseTask
-from clients.enums import PositionSideEnum, RabbitMqQueues
+from tasks.all_tasks import RabbitMqQueues
+from tasks.base_task import BaseTask
+from clients.enums import PositionSideEnum
 import configparser
 import sys
 

@@ -2,8 +2,8 @@ import traceback
 
 import aiohttp
 
-from core.base_task import BaseTask
-from core.enums import RabbitMqQueues
+from tasks.all_tasks import RabbitMqQueues
+from tasks.base_task import BaseTask
 
 
 class GetOrdersResults(BaseTask):

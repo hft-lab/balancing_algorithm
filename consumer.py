@@ -10,10 +10,7 @@ import orjson
 from aio_pika import connect_robust
 from aiohttp.web import Application
 
-from tasks.event.check_balance import CheckBalance
-from tasks.event.get_orders_results import GetOrdersResults
-from tasks.periodic.fundings import Funding
-from tasks.periodic.get_all_orders import GetMissedOrders
+
 
 import configparser
 import sys
@@ -27,12 +24,8 @@ dictConfig({'version': 1, 'disable_existing_loggers': False, 'formatters': {
             'loggers': {'': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False}}})
 logger = logging.getLogger(__name__)
 
-TASKS = {
-    f'logger.event.get_orders_results': GetOrdersResults,
-    'logger.periodic.funding': Funding,
-    'logger.event.check_balance': CheckBalance,
-    'logger.periodic.get_missed_orders': GetMissedOrders
-}
+from tasks.all_tasks import QUEUES_TASKS
+
 
 
 class Consumer:
@@ -51,15 +44,15 @@ class Consumer:
 
     async def run(self) -> None:
         """
-        Init setup db connection and star tasks from queue
+        Init setup mq connection and start getting tasks from queue
         :return: None
         """
         await self.setup_mq()
 
         logger.info(f"Queue: {self.queue}")
-        logger.info(f"Exist queue: {self.queue in TASKS}")
+        logger.info(f"Exist queue: {self.queue in QUEUES_TASKS}")
 
-        if self.queue and self.queue in TASKS:
+        if self.queue and self.queue in QUEUES_TASKS:
             logger.info("Single work option")
             self.periodic_tasks.append(self.loop.create_task(self._consume(self.app['mq'], self.queue)))
 
@@ -76,7 +69,7 @@ class Consumer:
         try:
             if 'logger.periodic' in message.routing_key:
                 await message.ack()
-            task = TASKS.get(message.routing_key)(self.app)
+            task = QUEUES_TASKS.get(message.routing_key)(self.app)
             await task.run(orjson.loads(message.body))
             logger.info(f"Success task {message.routing_key}")
             if 'logger.event' in message.routing_key:
