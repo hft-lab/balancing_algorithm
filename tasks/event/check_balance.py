@@ -3,8 +3,8 @@ import time
 import uuid
 from datetime import datetime
 
-from clients.enums import RabbitMqQueues
-from core.base_task import BaseTask
+from tasks.all_tasks import RabbitMqQueues
+from tasks.base_task import BaseTask
 
 
 class CheckBalance(BaseTask):
