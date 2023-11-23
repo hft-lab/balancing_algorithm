@@ -3,7 +3,7 @@ import logging
 from logging.config import dictConfig
 import orjson
 from aio_pika import connect, ExchangeType, Message
-from tasks.periodic.periodic_tasks import PeriodicTasks
+from tasks.all_tasks import PERIODIC_TASKS
 
 
 import configparser
@@ -28,7 +28,7 @@ class WorkerProducer:
         self.periodic_tasks = []
 
     async def run(self):
-        for task in PeriodicTasks.PERIODIC_TASKS:
+        for task in PERIODIC_TASKS:
             self.periodic_tasks.append(self.loop.create_task(self._publishing_task(task)))
 
     async def _publishing_task(self, task):
