@@ -28,7 +28,7 @@ class BaseTask:
             # 'BINANCE': BinanceClient(config['BINANCE'], leverage, self.alert_id, self.alert_token),
             # 'APOLLOX': ApolloxClient(config['APOLLOX'], leverage, self.alert_id, self.alert_token),
             'OKX': OkxClient(config['OKX'], leverage, self.alert_id, self.alert_token),
-            'KRAKEN': KrakenClient(config['KRAKEN'], leverage, self.alert_id, self.alert_token)
+            # 'KRAKEN': KrakenClient(config['KRAKEN'], leverage, self.alert_id, self.alert_token)
         }
 
     @staticmethod
