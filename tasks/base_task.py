@@ -33,7 +33,7 @@ class BaseTask:
             # 'BINANCE': BinanceClient(config['BINANCE']),
             # 'APOLLOX': ApolloxClient(config['APOLLOX']),
             'OKX': OkxClient(config['OKX'], leverage),
-            'KRAKEN': KrakenClient(config['KRAKEN'], leverage)
+            #'KRAKEN': KrakenClient(config['KRAKEN'], leverage)
         }
 
     @staticmethod
