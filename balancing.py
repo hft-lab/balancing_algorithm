@@ -1,6 +1,7 @@
 import asyncio
 import time
 import datetime
+import traceback
 import uuid
 import aiohttp
 from tasks.all_tasks import RabbitMqQueues
@@ -38,8 +39,8 @@ class Balancing(BaseTask):
         print('START BALANCING')
         async with aiohttp.ClientSession() as session:
             while True:
-                await self.setup_mq(loop)
                 try:
+                    await self.setup_mq(loop)
                     for exchange, client in self.clients.items():
                         client.get_position()
                         # self.orderbooks.update({exchange: {}})
@@ -48,7 +49,8 @@ class Balancing(BaseTask):
                         # print(f"UPDATED POSITION\n{exchange}: {client.get_positions()}")
                     # print(f"UPDATED ORDERBOOKS:\n{self.orderbooks}")
                 except Exception as e:
-                    print(f"Line 45 balancing.py. {e}")
+                    traceback.print_exc()
+                    print(f"Line 52 balancing.py. {e}")
                     time.sleep(60)
                     continue
                 await self.__close_all_open_orders()
