@@ -6,8 +6,10 @@ import aiohttp
 from tasks.all_tasks import RabbitMqQueues
 from tasks.base_task import BaseTask
 from clients.enums import PositionSideEnum
+from core.telegram import Telegram, TG_Groups
 import configparser
 import sys
+
 
 
 config = configparser.ConfigParser()
@@ -17,7 +19,7 @@ config.read(sys.argv[1], "utf-8")
 class Balancing(BaseTask):
     __slots__ = 'clients', 'positions', 'total_position', 'disbalances', \
                 'side', 'mq', 'session', 'open_orders', 'app', \
-                'chat_id', 'telegram_bot', 'env', 'disbalance_id', 'average_price', \
+                'chat_id', 'chat_token', 'env', 'disbalance_id', 'average_price', \
                 'orderbooks' # noqa
 
     def __init__(self):
@@ -28,8 +30,7 @@ class Balancing(BaseTask):
         # for client in self.clients:
         #     self.clients[client].run_updater()
         self.orderbooks = {}
-        self.chat_id = config['TELEGRAM']['CHAT_ID']
-        self.telegram_bot = config['TELEGRAM']['TOKEN']
+
         self.env = config['SETTINGS']['ENV']
         time.sleep(15)
 
@@ -164,7 +165,7 @@ class Balancing(BaseTask):
         send_message = {
             "chat_id": self.chat_id,
             "msg": message,
-            'bot_token': self.telegram_bot
+            'bot_token': self.chat_token
         }
         await self.publish_message(connect=self.mq,
                                    message=send_message,
@@ -223,7 +224,7 @@ class Balancing(BaseTask):
         send_message = {
             "chat_id": self.chat_id,
             "msg": message,
-            'bot_token': self.telegram_bot
+            'bot_token': self.chat_token
         }
         await self.publish_message(connect=self.mq,
                                    message=send_message,
@@ -247,7 +248,7 @@ class Balancing(BaseTask):
             'context': 'post-balancing',
             'env': self.env,
             'chat_id': self.chat_id,
-            'telegram_bot': self.telegram_bot,
+            'telegram_bot': self.chat_token,
         }
 
         await self.publish_message(connect=self.mq,
@@ -287,7 +288,7 @@ class Balancing(BaseTask):
                 "chat_id": self.chat_id,
                 "msg": f"ALERT NAME: Order Mistake\nCOIN: {coin}\nCONTEXT: BOT\nENV: {self.env}\nEXCHANGE: "
                        f"{client.EXCHANGE_NAME}\nOrder Id:{order_id}\nError:{client.error_info}",
-                'bot_token': self.telegram_bot
+                'bot_token': self.chat_token
             }
             await self.publish_message(connect=self.mq,
                                        message=error_message,

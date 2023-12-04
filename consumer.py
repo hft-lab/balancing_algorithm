@@ -9,8 +9,7 @@ import random
 import orjson
 from aio_pika import connect_robust
 from aiohttp.web import Application
-
-
+from tasks.all_tasks import QUEUES_TASKS
 
 import configparser
 import sys
@@ -23,9 +22,6 @@ dictConfig({'version': 1, 'disable_existing_loggers': False, 'formatters': {
                 'stream': 'ext://sys.stdout'}},
             'loggers': {'': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False}}})
 logger = logging.getLogger(__name__)
-
-from tasks.all_tasks import QUEUES_TASKS
-
 
 
 class Consumer:

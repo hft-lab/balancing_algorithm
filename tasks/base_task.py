@@ -6,6 +6,7 @@ from clients.dydx import DydxClient
 from clients.apollox import ApolloxClient
 from clients.kraken import KrakenClient
 from clients.okx import OkxClient
+from core.telegram import Telegram
 
 import configparser
 import sys
@@ -16,19 +17,23 @@ leverage = float(config['SETTINGS']['LEVERAGE'])
 
 
 class BaseTask:
-    __slots__ = 'mq', 'clients', 'alert_id', 'alert_token'
+    __slots__ = 'mq', 'clients','chat_id','chat_token','alert_id', 'alert_token','debug_id','debug_token'
 
     def __init__(self):
         self.mq = None
+        self.chat_id = config['TELEGRAM']['CHAT_ID']
+        self.chat_token = config['TELEGRAM']['TOKEN']
         self.alert_id = config['TELEGRAM']['ALERT_CHAT_ID']
         self.alert_token = config['TELEGRAM']['ALERT_BOT_TOKEN']
+        self.debug_id = config['TELEGRAM']['DEBUG_BOT_ID']
+        self.debug_token = config['TELEGRAM']['DEBUG_BOT_TOKEN']
         self.clients = {
-            # BitmexClient(config['BITMEX'], leverage, self.alert_id, self.alert_token),
-            'DYDX': DydxClient(config['DYDX'], leverage, self.alert_id, self.alert_token),
-            # 'BINANCE': BinanceClient(config['BINANCE'], leverage, self.alert_id, self.alert_token),
-            # 'APOLLOX': ApolloxClient(config['APOLLOX'], leverage, self.alert_id, self.alert_token),
-            'OKX': OkxClient(config['OKX'], leverage, self.alert_id, self.alert_token),
-            'KRAKEN': KrakenClient(config['KRAKEN'], leverage, self.alert_id, self.alert_token)
+            # BitmexClient(config['BITMEX'], leverage),
+            'DYDX': DydxClient(config['DYDX'], leverage),
+            # 'BINANCE': BinanceClient(config['BINANCE']),
+            # 'APOLLOX': ApolloxClient(config['APOLLOX']),
+            'OKX': OkxClient(config['OKX'], leverage),
+            #'KRAKEN': KrakenClient(config['KRAKEN'], leverage)
         }
 
     @staticmethod
