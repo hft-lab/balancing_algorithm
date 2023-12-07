@@ -17,7 +17,7 @@ leverage = float(config['SETTINGS']['LEVERAGE'])
 
 
 class BaseTask:
-    __slots__ = 'mq', 'clients','chat_id','chat_token','alert_id', 'alert_token','debug_id','debug_token'
+    __slots__ = 'mq', 'clients', 'chat_id', 'chat_token', 'alert_id', 'alert_token', 'debug_id', 'debug_token'
 
     def __init__(self):
         self.mq = None
@@ -25,8 +25,8 @@ class BaseTask:
         self.chat_token = config['TELEGRAM']['TOKEN']
         self.alert_id = config['TELEGRAM']['ALERT_CHAT_ID']
         self.alert_token = config['TELEGRAM']['ALERT_BOT_TOKEN']
-        self.debug_id = config['TELEGRAM']['DEBUG_BOT_ID']
-        self.debug_token = config['TELEGRAM']['DEBUG_BOT_TOKEN']
+        self.debug_id = config['TELEGRAM']['DIMA_DEBUG_CHAT_ID']
+        self.debug_token = config['TELEGRAM']['DIMA_DEBUG_BOT_TOKEN']
         self.clients = {
             # BitmexClient(config['BITMEX'], leverage),
             'DYDX': DydxClient(config['DYDX'], leverage),
