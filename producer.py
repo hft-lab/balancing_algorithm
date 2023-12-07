@@ -4,6 +4,8 @@ from logging.config import dictConfig
 import orjson
 from aio_pika import connect, ExchangeType, Message
 from tasks.all_tasks import PERIODIC_TASKS
+from core.wrappers import try_exc_regular, try_exc_async
+
 
 
 import configparser
@@ -27,10 +29,12 @@ class WorkerProducer:
         self.rabbit_url = f"amqp://{rabbit['USERNAME']}:{rabbit['PASSWORD']}@{rabbit['HOST']}:{rabbit['PORT']}/"
         self.periodic_tasks = []
 
+    @try_exc_async
     async def run(self):
         for task in PERIODIC_TASKS:
             self.periodic_tasks.append(self.loop.create_task(self._publishing_task(task)))
 
+    @try_exc_async
     async def _publishing_task(self, task):
         if task['delay']:
             await asyncio.sleep(task['delay'])

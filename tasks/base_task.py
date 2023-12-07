@@ -7,6 +7,8 @@ from clients.apollox import ApolloxClient
 from clients.kraken import KrakenClient
 from clients.okx import OkxClient
 from core.telegram import Telegram
+from core.wrappers import try_exc_regular, try_exc_async
+
 
 import configparser
 import sys
@@ -37,6 +39,7 @@ class BaseTask:
         }
 
     @staticmethod
+    @try_exc_async
     async def publish_message(connect, message, routing_key, exchange_name, queue_name):
         channel = await connect.channel()
         exchange = await channel.declare_exchange(exchange_name, type=ExchangeType.DIRECT, durable=True)
@@ -48,6 +51,7 @@ class BaseTask:
         await channel.close()
         return True
 
+    @try_exc_async
     async def setup_mq(self, event_loop) -> None:
         rabbit = config['RABBIT']
         rabbit_url = f"amqp://{rabbit['USERNAME']}:{rabbit['PASSWORD']}@{rabbit['HOST']}:{rabbit['PORT']}/"

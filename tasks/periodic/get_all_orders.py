@@ -2,6 +2,8 @@ import aiohttp
 
 from tasks.all_tasks import RabbitMqQueues
 from tasks.base_task import BaseTask
+from core.wrappers import try_exc_regular, try_exc_async
+
 
 class GetMissedOrders(BaseTask):
 
@@ -9,6 +11,7 @@ class GetMissedOrders(BaseTask):
         super().__init__()
         self.app = app
 
+    @try_exc_async
     async def run(self, payload: dict) -> None:
         orders = []
 
