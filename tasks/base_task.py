@@ -26,10 +26,10 @@ class BaseTask:
         self.debug_id = config['TELEGRAM']['DIMA_DEBUG_CHAT_ID']
         self.debug_token = config['TELEGRAM']['DIMA_DEBUG_BOT_TOKEN']
         self.exchanges = config['SETTINGS']['EXCHANGES'].split(',')
-        self.clients = []
+        self.clients = {}
         for exchange in self.exchanges:
             client = ALL_CLIENTS[exchange](keys=config[exchange], leverage=leverage)
-            self.clients.append(client)
+            self.clients.update({exchange: client})
 
     @staticmethod
     @try_exc_async
