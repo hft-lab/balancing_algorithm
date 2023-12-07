@@ -25,7 +25,7 @@ class BaseTask:
         self.alert_token = config['TELEGRAM']['ALERT_BOT_TOKEN']
         self.debug_id = config['TELEGRAM']['DIMA_DEBUG_CHAT_ID']
         self.debug_token = config['TELEGRAM']['DIMA_DEBUG_BOT_TOKEN']
-        self.exchanges = config['EXCHANGES'].split(',')
+        self.exchanges = config['SETTINGS']['EXCHANGES'].split(',')
         self.clients = []
         for exchange in self.exchanges:
             client = ALL_CLIENTS[exchange](keys=config[exchange], leverage=leverage)
