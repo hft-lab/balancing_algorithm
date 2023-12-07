@@ -1,12 +1,9 @@
 import orjson
 from aio_pika import Message, ExchangeType, connect_robust
+from clients.core.all_clients import ALL_CLIENTS
 
-from clients.binance import BinanceClient
-from clients.dydx import DydxClient
-from clients.apollox import ApolloxClient
-from clients.kraken import KrakenClient
-from clients.okx import OkxClient
-from core.telegram import Telegram
+from core.wrappers import try_exc_async
+
 
 import configparser
 import sys
@@ -17,7 +14,8 @@ leverage = float(config['SETTINGS']['LEVERAGE'])
 
 
 class BaseTask:
-    __slots__ = 'mq', 'clients','chat_id','chat_token','alert_id', 'alert_token','debug_id','debug_token'
+    __slots__ = 'mq', 'clients', 'chat_id', 'chat_token', 'alert_id', 'alert_token', 'debug_id', 'debug_token',\
+                'exchanges'
 
     def __init__(self):
         self.mq = None
@@ -25,18 +23,16 @@ class BaseTask:
         self.chat_token = config['TELEGRAM']['TOKEN']
         self.alert_id = config['TELEGRAM']['ALERT_CHAT_ID']
         self.alert_token = config['TELEGRAM']['ALERT_BOT_TOKEN']
-        self.debug_id = config['TELEGRAM']['DEBUG_BOT_ID']
-        self.debug_token = config['TELEGRAM']['DEBUG_BOT_TOKEN']
-        self.clients = {
-            # BitmexClient(config['BITMEX'], leverage),
-            'DYDX': DydxClient(config['DYDX'], leverage),
-            # 'BINANCE': BinanceClient(config['BINANCE']),
-            # 'APOLLOX': ApolloxClient(config['APOLLOX']),
-            'OKX': OkxClient(config['OKX'], leverage),
-            'KRAKEN': KrakenClient(config['KRAKEN'], leverage)
-        }
+        self.debug_id = config['TELEGRAM']['DIMA_DEBUG_CHAT_ID']
+        self.debug_token = config['TELEGRAM']['DIMA_DEBUG_BOT_TOKEN']
+        self.exchanges = config['EXCHANGES'].split(',')
+        self.clients = []
+        for exchange in self.exchanges:
+            client = ALL_CLIENTS[exchange](keys=config[exchange], leverage=leverage)
+            self.clients.append(client)
 
     @staticmethod
+    @try_exc_async
     async def publish_message(connect, message, routing_key, exchange_name, queue_name):
         channel = await connect.channel()
         exchange = await channel.declare_exchange(exchange_name, type=ExchangeType.DIRECT, durable=True)
@@ -48,6 +44,7 @@ class BaseTask:
         await channel.close()
         return True
 
+    @try_exc_async
     async def setup_mq(self, event_loop) -> None:
         rabbit = config['RABBIT']
         rabbit_url = f"amqp://{rabbit['USERNAME']}:{rabbit['PASSWORD']}@{rabbit['HOST']}:{rabbit['PORT']}/"

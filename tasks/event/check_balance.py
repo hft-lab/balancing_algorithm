@@ -5,6 +5,7 @@ from datetime import datetime
 
 from tasks.all_tasks import RabbitMqQueues
 from tasks.base_task import BaseTask
+from core.wrappers import try_exc_regular, try_exc_async
 
 
 class CheckBalance(BaseTask):
@@ -22,6 +23,7 @@ class CheckBalance(BaseTask):
         self.balances = []
         self.positions = []
 
+    @try_exc_async
     async def run(self, payload: dict) -> None:
         await asyncio.sleep(5)
         self.parent_id = payload['parent_id']
@@ -32,6 +34,7 @@ class CheckBalance(BaseTask):
 
         await self.__check_balances()
 
+    @try_exc_async
     async def __check_balances(self) -> None:
         for client in self.clients.values():
             balance_id = uuid.uuid4()
@@ -41,6 +44,7 @@ class CheckBalance(BaseTask):
                 client.orderbook[symbol] = await client.get_orderbook_by_symbol(symbol)
                 await self.__save_balance_detalization(symbol, client, balance_id)
 
+    @try_exc_async
     async def __save_balance(self, client, balance_id) -> None:
         sum_amount_usd = sum([x.get('amount_usd', 0) for _, x in client.get_positions().items()])
         message = {
@@ -66,6 +70,7 @@ class CheckBalance(BaseTask):
                                    queue_name=RabbitMqQueues.BALANCES
                                    )
 
+    @try_exc_async
     async def __save_balance_detalization(self, symbol, client, parent_id):
         client_position_by_symbol = client.get_positions()[symbol]
         mark_price = (client.get_orderbook(symbol)['asks'][0][0] +

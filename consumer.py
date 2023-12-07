@@ -10,6 +10,8 @@ import orjson
 from aio_pika import connect_robust
 from aiohttp.web import Application
 from tasks.all_tasks import QUEUES_TASKS
+from core.wrappers import try_exc_regular, try_exc_async
+
 
 import configparser
 import sys
@@ -38,6 +40,7 @@ class Consumer:
         self.rabbit_url = f"amqp://{rabbit['USERNAME']}:{rabbit['PASSWORD']}@{rabbit['HOST']}:{rabbit['PORT']}/"  # noqa
         self.periodic_tasks = []
 
+    @try_exc_async
     async def run(self) -> None:
         """
         Init setup mq connection and start getting tasks from queue
@@ -52,27 +55,25 @@ class Consumer:
             logger.info("Single work option")
             self.periodic_tasks.append(self.loop.create_task(self._consume(self.app['mq'], self.queue)))
 
+    @try_exc_async
     async def setup_mq(self):
         self.app['mq'] = await connect_robust(self.rabbit_url, loop=self.loop)
 
+    @try_exc_async
     async def _consume(self, connection, queue_name) -> None:
         channel = await connection.channel()
         queue = await channel.declare_queue(queue_name, durable=True)
         await queue.consume(self.on_message)
 
+    @try_exc_async
     async def on_message(self, message) -> None:
         logger.info(f"\n\nReceived message {message.routing_key}")
-        try:
-            if 'logger.periodic' in message.routing_key:
-                await message.ack()
-            task = QUEUES_TASKS.get(message.routing_key)(self.app)
-            await task.run(orjson.loads(message.body))
-            logger.info(f"Success task {message.routing_key}")
-            if 'logger.event' in message.routing_key:
-                await message.ack()
-        except Exception as e:
-            logger.info(f"Error {e} while serving task {message.routing_key}")
-            traceback.print_exc()
+        if 'logger.periodic' in message.routing_key:
+            await message.ack()
+        task = QUEUES_TASKS.get(message.routing_key)(self.app)
+        await task.run(orjson.loads(message.body))
+        logger.info(f"Success task {message.routing_key}")
+        if 'logger.event' in message.routing_key:
             await message.ack()
 
 
@@ -96,58 +97,15 @@ if __name__ == '__main__':
         finally:
             loop.close()
 
+    queues = config['SETTINGS']['QUEUES'].split(',')
 
-    if __name__ == '__main__':
-        queues = config['SETTINGS']['QUEUES'].split(',')
+    processes = []
+    for queue in queues:
+        process = multiprocessing.Process(target=async_process, args=(queue,))
+        processes.append(process)
+        process.start()
 
-        processes = []
-        for queue in queues:
-            process = multiprocessing.Process(target=async_process, args=(queue,))
-            processes.append(process)
-            process.start()
+    for process in processes:
+        process.join()
 
-        for process in processes:
-            process.join()
-
-    # def main_loop(queue):
-    #     try:
-    #         loop = asyncio.get_event_loop()
-    #
-    #         worker = Consumer(loop, queue=queue)
-    #         loop.run_until_complete(worker.run())
-    #
-    #         # You can add other tasks or logic here
-    #
-    #     except Exception:
-    #         traceback.print_exc()
-
-
-    # Run the main loop multiple times
-    # for queue in queues:
-    #     main_loop(queue)
-    # threads = []
-
-    # #
-
-    # # #
-    # # #
-    # # # asyncio.run(main())
-    # # for queue in queues:
-    # #     asyncio.run(process_queue(queue))
-    # self.loop_1 = asyncio.new_event_loop()
-    # t1 = threading.Thread(target=self.run_await_in_thread, args=[self.__start, self.loop_1])
-    # t1.start()
-    # t1.join(0-9)
-    #
-    # loop = asyncio.get_event_loop()
-    #
-    # worker = Consumer(loop, queue=queues[0])
-    # loop.run_until_complete(worker.run())
-    #
-    # try:
-    #     loop.run_forever()
-    # except Exception:
-    #     traceback.print_exc()
-    # finally:
-    #     loop.close()
 

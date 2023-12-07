@@ -1,3 +1,6 @@
+from core.wrappers import try_exc_regular, try_exc_async
+
+
 class RabbitMqQueues:
     TELEGRAM = 'logger.event.send_to_telegram'
     ORDERS = 'logger.event.insert_orders'
@@ -23,6 +26,7 @@ class RabbitMqQueues:
 
 
     @staticmethod
+    @try_exc_regular
     def get_exchange_name(routing_key: str):
         routing_list = routing_key.split('.')
 

@@ -5,6 +5,7 @@ import aiohttp
 
 from tasks.all_tasks import RabbitMqQueues
 from tasks.base_task import BaseTask
+from core.wrappers import try_exc_regular, try_exc_async
 
 import configparser
 import sys
@@ -20,10 +21,12 @@ class Funding(BaseTask):
         self.app = app
         self.env = config['SETTINGS']['ENV']
 
+    @try_exc_async
     async def run(self, payload: dict) -> None:
         async with aiohttp.ClientSession() as session:
             await self.__get_fundings(session)
 
+    @try_exc_async
     async def __get_fundings(self, session) -> None:
         for client_name, client in self.clients.items():
             fundings = await client.get_funding_payments(session)
@@ -33,6 +36,7 @@ class Funding(BaseTask):
                 else:
                     print(fund)
 
+    @try_exc_async
     async def save_funding(self, funding, exchange):
         message = {
             'id': uuid.uuid4(),

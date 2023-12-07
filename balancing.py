@@ -10,6 +10,7 @@ from clients.enums import PositionSideEnum
 from core.telegram import Telegram, TG_Groups
 import configparser
 import sys
+from core.wrappers import try_exc_regular, try_exc_async
 
 
 
@@ -35,24 +36,14 @@ class Balancing(BaseTask):
         self.env = config['SETTINGS']['ENV']
         time.sleep(15)
 
+    @try_exc_async
     async def run(self, loop) -> None:
         print('START BALANCING')
         async with aiohttp.ClientSession() as session:
             while True:
-                try:
-                    await self.setup_mq(loop)
-                    for exchange, client in self.clients.items():
-                        client.get_position()
-                        # self.orderbooks.update({exchange: {}})
-                        # for symbol, pos in client.get_positions().items():
-                        #     self.orderbooks[exchange].update({symbol: await client.get_orderbook_by_symbol(symbol)})
-                        # print(f"UPDATED POSITION\n{exchange}: {client.get_positions()}")
-                    # print(f"UPDATED ORDERBOOKS:\n{self.orderbooks}")
-                except Exception as e:
-                    traceback.print_exc()
-                    print(f"Line 52 balancing.py. {e}")
-                    time.sleep(60)
-                    continue
+                await self.setup_mq(loop)
+                for exchange, client in self.clients.items():
+                    client.get_position()
                 await self.__close_all_open_orders()
                 await self.__get_positions()
                 await self.__get_total_positions()
@@ -65,6 +56,7 @@ class Balancing(BaseTask):
 
                 time.sleep(int(config['SETTINGS']['TIMEOUT']))
 
+    @try_exc_regular
     def __set_default(self) -> None:
         self.positions = {}
         self.open_orders = {}
@@ -72,6 +64,7 @@ class Balancing(BaseTask):
         self.disbalances = {}
         self.disbalance_id = uuid.uuid4()
 
+    @try_exc_async
     async def __get_positions(self) -> None:
         for client_name, client in self.clients.items():
             for symbol, position in client.get_positions().items():
@@ -88,6 +81,7 @@ class Balancing(BaseTask):
                     self.positions[coin].update({client_name: position})
 
     @staticmethod
+    @try_exc_regular
     def get_coin(symbol):
         coin = ''
         if '_' in symbol:
@@ -98,6 +92,7 @@ class Balancing(BaseTask):
             coin = symbol.split('USD')[0]
         return coin
 
+    @try_exc_async
     async def __get_total_positions(self) -> None:
         positions = {}
         for coin, exchanges in self.positions.items():
@@ -120,6 +115,7 @@ class Balancing(BaseTask):
             self.disbalances[coin].update({'coin': disb_coin})  # noqa
             self.disbalances[coin].update({'usd': disb_usd})
 
+    @try_exc_regular
     def create_positions_message(self):
         refactored_positions = {}
         for coin, exchanges in self.positions.items():
@@ -135,6 +131,7 @@ class Balancing(BaseTask):
                                                       'num_positions': 1}})
         return self.compose_message(refactored_positions)
 
+    @try_exc_regular
     def compose_message(self, refactored_positions):
         tot_pos = 0
         abs_pos = 0
@@ -163,6 +160,7 @@ class Balancing(BaseTask):
                 message += f" (USD: {int(round(disbalance['usd'], 0))})"
         return message
 
+    @try_exc_async
     async def send_positions_message(self, message):
         send_message = {
             "chat_id": self.chat_id,
@@ -175,10 +173,12 @@ class Balancing(BaseTask):
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.TELEGRAM),
                                    queue_name=RabbitMqQueues.TELEGRAM)
 
+    @try_exc_async
     async def __close_all_open_orders(self) -> None:
         for _, client in self.clients.items():
             client.cancel_all_orders()
 
+    @try_exc_async
     async def __get_amount_for_all_clients(self, amount, exchanges, coin, side):
         for exchange in exchanges:
             symbol = self.positions[coin][exchange]['symbol']
@@ -192,6 +192,7 @@ class Balancing(BaseTask):
         # for client in self.clients.values():
         #     client.expect_amount_coin = max_amount
 
+    @try_exc_async
     async def __balancing_positions(self, session) -> None:
         for coin, disbalance in self.disbalances.items():
             tasks = []
@@ -217,6 +218,7 @@ class Balancing(BaseTask):
             await self.save_balance()
             await self.send_balancing_message(exchanges, coin, side)
 
+    @try_exc_async
     async def send_balancing_message(self, exchanges, coin, side):
         message = 'BALANCING PROCEED:\n'
         message += f"COIN: {coin}\n"
@@ -234,6 +236,7 @@ class Balancing(BaseTask):
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.TELEGRAM),
                                    queue_name=RabbitMqQueues.TELEGRAM)
 
+    @try_exc_async
     async def place_and_save_orders(self, tasks, tasks_data, coin, side) -> None:
         for res in await asyncio.gather(*tasks, return_exceptions=True):
             exchange = res['exchange_name']
@@ -244,6 +247,7 @@ class Balancing(BaseTask):
                                    order_place_time,
                                    coin, side)
 
+    @try_exc_async
     async def save_balance(self) -> None:
         message = {
             'parent_id': self.disbalance_id,
@@ -259,6 +263,7 @@ class Balancing(BaseTask):
                                    exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.CHECK_BALANCE),
                                    queue_name=RabbitMqQueues.CHECK_BALANCE)
 
+    @try_exc_async
     async def save_orders(self, client, expect_price, amount, order_place_time, coin, side) -> None:
         order_id = uuid.uuid4()
         message = {
@@ -307,6 +312,7 @@ class Balancing(BaseTask):
 
         client.LAST_ORDER_ID = 'default'
 
+    @try_exc_async
     async def save_disbalance(self, coin, client):
         message = {
             'id': self.disbalance_id,
