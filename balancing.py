@@ -45,6 +45,7 @@ class Balancing(BaseTask):
                 for exchange, client in self.clients.items():
                     client.get_position()
                 await self.__close_all_open_orders()
+                await self.update_balances()
                 await self.__get_positions()
                 await self.__get_total_positions()
                 await self.send_positions_message(self.create_positions_message())
@@ -63,6 +64,11 @@ class Balancing(BaseTask):
         self.total_position = 0
         self.disbalances = {}
         self.disbalance_id = uuid.uuid4()
+
+    @try_exc_async
+    async def update_balances(self):
+        for client_name, client in self.clients.items():
+            client.get_real_balance()
 
     @try_exc_async
     async def __get_positions(self) -> None:
