@@ -5,7 +5,8 @@ venv
 .env.*
 __pycache__
 
-
+test.py
+config.ini
 arbi.txt
 rates.txt
 /clients

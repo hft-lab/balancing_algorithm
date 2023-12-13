@@ -40,7 +40,7 @@ class CheckBalance(BaseTask):
             balance_id = uuid.uuid4()
             await self.__save_balance(client, balance_id)
 
-            for symbol in client.get_positions():
+            for symbol in client.get_positions().copy():
                 client.orderbook[symbol] = await client.get_orderbook_by_symbol(symbol)
                 await self.__save_balance_detalization(symbol, client, balance_id)
 
