@@ -4,9 +4,7 @@ from logging.config import dictConfig
 import orjson
 from aio_pika import connect, ExchangeType, Message
 from tasks.all_tasks import PERIODIC_TASKS
-from core.wrappers import try_exc_regular, try_exc_async
-
-
+from core.wrappers import try_exc_async
 
 import configparser
 import sys
@@ -64,7 +62,5 @@ if __name__ == '__main__':
     worker = WorkerProducer(loop)
     loop.run_until_complete(worker.run())
 
-    try:
-        loop.run_forever()
-    finally:
-        loop.close()
+    loop.run_forever()
+    loop.close()

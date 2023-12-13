@@ -1,10 +1,8 @@
-import traceback
-
 import aiohttp
 
 from tasks.all_tasks import RabbitMqQueues
 from tasks.base_task import BaseTask
-from core.wrappers import try_exc_regular, try_exc_async
+from core.wrappers import try_exc_async
 
 
 class GetOrdersResults(BaseTask):

@@ -10,7 +10,7 @@ import orjson
 from aio_pika import connect_robust
 from aiohttp.web import Application
 from tasks.all_tasks import QUEUES_TASKS
-from core.wrappers import try_exc_regular, try_exc_async
+from core.wrappers import try_exc_async, try_exc_regular
 
 
 import configparser
@@ -82,21 +82,17 @@ if __name__ == '__main__':
     # parser = argparse.ArgumentParser()
     # parser.add_argument('-q', nargs='?', const=True, dest='queue', default='logger.periodic.get_missed_orders')
     # args = parser.parse_args()
-    import threading
     import multiprocessing
 
+    @try_exc_regular
     def async_process(queue):
         loop = asyncio.get_event_loop()
         asyncio.set_event_loop(loop)
 
         worker = Consumer(loop, queue=queue)
         loop.run_until_complete(worker.run())
-        try:
-            loop.run_forever()
-        except Exception:
-            traceback.print_exc()
-        finally:
-            loop.close()
+        loop.run_forever()
+        loop.close()
 
     queues = config['SETTINGS']['QUEUES'].split(',')
 

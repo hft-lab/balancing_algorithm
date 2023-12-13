@@ -89,14 +89,10 @@ class Balancing(BaseTask):
     async def __get_total_positions(self) -> None:
         positions = {}
         for coin, exchanges in self.positions.items():
-            sample_exch = list(exchanges.keys())[0]
-            symbol = self.positions[coin][sample_exch]['symbol']
-            ob = await self.clients[sample_exch].get_orderbook_by_symbol(symbol)
-            mark_price = (ob['asks'][0][0] + ob['bids'][0][0]) / 2
             positions.update({coin: {'long': {'coin': 0, 'usd': 0}, 'short': {'coin': 0, 'usd': 0}}})
             self.disbalances.update({coin: {}})
             for exchange, position in exchanges.items():
-                pos_usd = int(round(position['amount'] * mark_price, 0))
+                pos_usd = int(round(position['amount_usd']))
                 if position and position.get('side') == PositionSideEnum.LONG:
                     positions[coin]['long']['coin'] += position['amount']
                     positions[coin]['long']['usd'] += pos_usd
