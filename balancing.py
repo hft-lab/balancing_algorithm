@@ -113,6 +113,13 @@ class Balancing(BaseTask):
             disb_usd = positions[coin]['long']['usd'] + positions[coin]['short']['usd']
             self.disbalances[coin].update({'coin': disb_coin})  # noqa
             self.disbalances[coin].update({'usd': disb_usd})
+        if len(list(self.disbalances)) > 2:
+            message = f"ALERT: MORE THAN ONE DISBALANCE. POSITIONS: {self.positions}"
+            await self.publish_message(connect=self.mq,
+                                       message=message,
+                                       routing_key=RabbitMqQueues.TELEGRAM,
+                                       exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.TELEGRAM),
+                                       queue_name=RabbitMqQueues.TELEGRAM)
 
     @try_exc_regular
     def create_positions_message(self):
