@@ -9,6 +9,7 @@ from clients.enums import PositionSideEnum
 import configparser
 import sys
 from core.wrappers import try_exc_regular, try_exc_async
+import random
 
 config = configparser.ConfigParser()
 config.read(sys.argv[1], "utf-8")
@@ -85,14 +86,23 @@ class Balancing(BaseTask):
             coin = symbol.split('USD')[0]
         return coin
 
+    @try_exc_regular
+    def get_mark_price(self, coin):
+        clients_list = list(self.clients.values())
+        random_client = clients_list[random.randint(0, len(clients_list) - 1)]
+        ob = random_client.get_orderbook_by_symbol(random_client.markets[coin])
+        mark_price = (ob['asks'][0][0] + ob['bids'][0][0]) / 2
+        return mark_price
+
     @try_exc_async
     async def __get_total_positions(self) -> None:
         positions = {}
         for coin, exchanges in self.positions.items():
+            mark_price = self.get_mark_price(coin)
             positions.update({coin: {'long': {'coin': 0, 'usd': 0}, 'short': {'coin': 0, 'usd': 0}}})
             self.disbalances.update({coin: {}})
             for exchange, position in exchanges.items():
-                pos_usd = int(round(position['amount_usd']))
+                pos_usd = position['amount'] * mark_price
                 if position and position.get('side') == PositionSideEnum.LONG:
                     positions[coin]['long']['coin'] += position['amount']
                     positions[coin]['long']['usd'] += pos_usd
