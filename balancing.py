@@ -86,10 +86,10 @@ class Balancing(BaseTask):
             coin = symbol.split('USD')[0]
         return coin
 
-    @try_exc_regular
-    def get_mark_price(self, coin):
+    @try_exc_async
+    async def get_mark_price(self, coin):
         clients_list = list(self.clients.values())
-        random_client = clients_list[random.randint(0, len(clients_list) - 1)]
+        random_client = await clients_list[random.randint(0, len(clients_list) - 1)]
         ob = random_client.get_orderbook_by_symbol(random_client.markets[coin])
         mark_price = (ob['asks'][0][0] + ob['bids'][0][0]) / 2
         return mark_price
