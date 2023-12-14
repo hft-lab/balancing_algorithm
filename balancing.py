@@ -10,6 +10,7 @@ import configparser
 import sys
 from core.wrappers import try_exc_regular, try_exc_async
 import random
+from core.telegram import Telegram, TG_Groups
 
 config = configparser.ConfigParser()
 config.read(sys.argv[1], "utf-8")
@@ -19,11 +20,12 @@ class Balancing(BaseTask):
     __slots__ = 'clients', 'positions', 'total_position', 'disbalances', \
                 'side', 'mq', 'session', 'open_orders', 'app', \
                 'chat_id', 'chat_token', 'env', 'disbalance_id', 'average_price', \
-                'orderbooks' # noqa
+                'orderbooks', 'telegram' # noqa
 
     def __init__(self):
         super().__init__()
         self.__set_default()
+        self.telegram = Telegram()
         self.orderbooks = {}
         self.env = config['SETTINGS']['ENV']
         time.sleep(15)
@@ -87,18 +89,25 @@ class Balancing(BaseTask):
         return coin
 
     @try_exc_async
-    async def get_mark_price(self, coin):
+    async def get_mark_price(self, coin: str) -> float:
         clients_list = list(self.clients.values())
         random_client = clients_list[random.randint(0, len(clients_list) - 1)]
-        ob = await random_client.get_orderbook_by_symbol(random_client.markets[coin])
-        mark_price = (ob['asks'][0][0] + ob['bids'][0][0]) / 2
-        return mark_price
+        if market := random_client.markets.get(coin):
+            ob = await random_client.get_orderbook_by_symbol(market)
+            mark_price = (ob['asks'][0][0] + ob['bids'][0][0]) / 2
+            return mark_price
+        else:
+            for client in clients_list:
+                if market := client.markets.get(coin):
+                    ob = await client.get_orderbook_by_symbol(market)
+                    mark_price = (ob['asks'][0][0] + ob['bids'][0][0]) / 2
+                    return mark_price
 
     @try_exc_async
     async def __get_total_positions(self) -> None:
         positions = {}
         for coin, exchanges in self.positions.items():
-            mark_price = self.get_mark_price(coin)
+            mark_price = await self.get_mark_price(coin)
             positions.update({coin: {'long': {'coin': 0, 'usd': 0}, 'short': {'coin': 0, 'usd': 0}}})
             self.disbalances.update({coin: {}})
             for exchange, position in exchanges.items():
@@ -115,11 +124,7 @@ class Balancing(BaseTask):
             self.disbalances[coin].update({'usd': disb_usd})
         if len(list(self.disbalances)) > 2:
             message = f"ALERT: MORE THAN ONE DISBALANCE. POSITIONS: {self.positions}"
-            await self.publish_message(connect=self.mq,
-                                       message=message,
-                                       routing_key=RabbitMqQueues.TELEGRAM,
-                                       exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.TELEGRAM),
-                                       queue_name=RabbitMqQueues.TELEGRAM)
+            self.telegram.send_message(message, TG_Groups.Alerts)
 
     @try_exc_regular
     def create_positions_message(self):
