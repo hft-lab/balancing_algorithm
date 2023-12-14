@@ -4,15 +4,13 @@ import uuid
 from datetime import datetime
 
 from tasks.all_tasks import RabbitMqQueues
-from tasks.base_task import BaseTask
 from core.wrappers import try_exc_regular, try_exc_async
 
 
-class CheckBalance(BaseTask):
+class CheckBalance:
 
-    def __init__(self, app):
-        super().__init__()
-
+    def __init__(self, app, base_task):
+        self.base_task = base_task
         self.app = app
 
         self.chat_id = None
@@ -36,7 +34,7 @@ class CheckBalance(BaseTask):
 
     @try_exc_async
     async def __check_balances(self) -> None:
-        for client in self.clients.values():
+        for client in self.base_task.clients.values():
             balance_id = uuid.uuid4()
             await self.__save_balance(client, balance_id)
 
@@ -68,12 +66,12 @@ class CheckBalance(BaseTask):
             'current_margin': current_margin
         }
 
-        await self.publish_message(connect=self.app['mq'],
-                                   message=message,
-                                   routing_key=RabbitMqQueues.BALANCES,
-                                   exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.BALANCES),
-                                   queue_name=RabbitMqQueues.BALANCES
-                                   )
+        await self.base_task.publish_message(connect=self.app['mq'],
+                                             message=message,
+                                             routing_key=RabbitMqQueues.BALANCES,
+                                             exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.BALANCES),
+                                             queue_name=RabbitMqQueues.BALANCES
+                                             )
 
     @try_exc_async
     async def __save_balance_detalization(self, symbol, client, parent_id):
@@ -100,9 +98,10 @@ class CheckBalance(BaseTask):
             'available_for_buy': round(real_balance * client.leverage - position_usd, 1),
             'available_for_sell': round(real_balance * client.leverage + position_usd, 1)
         }
-        await self.publish_message(connect=self.app['mq'],
-                                   message=message,
-                                   routing_key=RabbitMqQueues.BALANCE_DETALIZATION,
-                                   exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.BALANCE_DETALIZATION),
-                                   queue_name=RabbitMqQueues.BALANCE_DETALIZATION
-                                   )
+        await self.base_task.publish_message(connect=self.app['mq'],
+                                             message=message,
+                                             routing_key=RabbitMqQueues.BALANCE_DETALIZATION,
+                                             exchange_name=RabbitMqQueues.get_exchange_name(
+                                                 RabbitMqQueues.BALANCE_DETALIZATION),
+                                             queue_name=RabbitMqQueues.BALANCE_DETALIZATION
+                                             )

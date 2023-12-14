@@ -1,10 +1,9 @@
-import argparse
 import asyncio
 import logging
-import traceback
 from logging.config import dictConfig
 import time
 import random
+from tasks.base_task import BaseTask
 
 import orjson
 from aio_pika import connect_robust
@@ -40,6 +39,7 @@ class Consumer:
         rabbit = config['RABBIT']
         self.rabbit_url = f"amqp://{rabbit['USERNAME']}:{rabbit['PASSWORD']}@{rabbit['HOST']}:{rabbit['PORT']}/"  # noqa
         self.periodic_tasks = []
+        self.base_task = BaseTask()
 
     @try_exc_async
     async def run(self) -> None:
@@ -71,7 +71,7 @@ class Consumer:
         logger.info(f"\n\nReceived message {message.routing_key}")
         if 'logger.periodic' in message.routing_key:
             await message.ack()
-        task = QUEUES_TASKS.get(message.routing_key)(self.app)
+        task = QUEUES_TASKS.get(message.routing_key)(self.app, self.base_task)
         await task.run(orjson.loads(message.body))
         logger.info(f"Success task {message.routing_key}")
         if 'logger.event' in message.routing_key:
