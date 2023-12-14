@@ -173,6 +173,9 @@ class Balancing(BaseTask):
             symbol = self.positions[coin][exchange]['symbol']
             step_size = self.clients[exchange].instruments[symbol]['step_size']
             size = round(amount / step_size) * step_size
+            if size < self.clients[exchange].instruments[symbol]['min_size']:
+                self.clients[exchange].amount = 0
+                continue
             self.clients[exchange].amount = size
             position = self.positions[coin][exchange]
             ob = await self.clients[exchange].get_orderbook_by_symbol(symbol)
@@ -197,6 +200,9 @@ class Balancing(BaseTask):
                 continue
             await self.__get_amount_for_all_clients(abs(disbalance['coin']) / len(exchanges), exchanges, coin, side)
             for exchange in exchanges:
+                if not self.clients[exchange].amount:
+                    exchanges.remove(exchange)
+                    continue
                 symbol = self.positions[coin][exchange]['symbol']
                 client_id = f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"
                 tasks.append(self.clients[exchange].create_order(symbol=symbol,
