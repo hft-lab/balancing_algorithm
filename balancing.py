@@ -20,13 +20,14 @@ class Balancing(BaseTask):
     __slots__ = 'clients', 'positions', 'total_position', 'disbalances', \
                 'side', 'mq', 'session', 'open_orders', 'app', \
                 'chat_id', 'chat_token', 'env', 'disbalance_id', 'average_price', \
-                'orderbooks', 'telegram' # noqa
+                'orderbooks', 'telegram', 'last_positions' # noqa
 
     def __init__(self):
         super().__init__()
         self.__set_default()
         self.telegram = Telegram()
         self.orderbooks = {}
+        self.last_positions = {}
         self.env = config['SETTINGS']['ENV']
         time.sleep(15)
 
@@ -41,18 +42,22 @@ class Balancing(BaseTask):
                 await self.__close_all_open_orders()
                 await self.update_balances()
                 await self.__get_positions()
-                await self.__get_total_positions()
-                await self.send_positions_message(self.create_positions_message())
-                await self.__balancing_positions(session)
-                await self.mq.close()
+                if self.check_for_empty_positions:
+                    await self.__get_total_positions()
+                    await self.send_positions_message(self.create_positions_message())
+                    await self.__balancing_positions(session)
+                else:
+                    message = f"ALERT: SIGNIFICANT POSITIONS CHANGE. SKIP BALANCING.\n"
+                    message += f"POSES: {self.positions}\nLAST POSES: {self.last_positions}"
+                    self.telegram.send_message(message, TG_Groups.Alerts)
                 print(f"MQ CLOSED")
-
+                await self.mq.close()
                 self.__set_default()
-
                 time.sleep(int(config['SETTINGS']['TIMEOUT']))
 
     @try_exc_regular
     def __set_default(self) -> None:
+        self.last_positions = self.positions
         self.positions = {}
         self.open_orders = {}
         self.total_position = 0
@@ -75,6 +80,18 @@ class Balancing(BaseTask):
                     self.positions.update({coin: {client_name: position}})
                 else:
                     self.positions[coin].update({client_name: position})
+
+    @try_exc_regular
+    def check_for_empty_positions(self):
+        len_new_pos = 0
+        len_old_pos = 0
+        for positions in self.positions.values():
+            len_new_pos += len(list(positions))
+        for positions in self.last_positions.values():
+            len_old_pos += len(list(positions))
+        if abs(len_old_pos - len_new_pos) >= 2:
+            return False
+        return True
 
     @staticmethod
     @try_exc_regular
@@ -122,9 +139,6 @@ class Balancing(BaseTask):
             disb_usd = positions[coin]['long']['usd'] + positions[coin]['short']['usd']
             self.disbalances[coin].update({'coin': disb_coin})  # noqa
             self.disbalances[coin].update({'usd': disb_usd})
-        if len(list(self.disbalances)) > 2:
-            message = f"ALERT: MORE THAN ONE DISBALANCE. POSITIONS: {self.positions}"
-            self.telegram.send_message(message, TG_Groups.Alerts)
 
     @try_exc_regular
     def create_positions_message(self):
