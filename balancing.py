@@ -24,10 +24,11 @@ class Balancing(BaseTask):
 
     def __init__(self):
         super().__init__()
+        self.positions = {}
+        self.last_positions = {}
         self.__set_default()
         self.telegram = Telegram()
         self.orderbooks = {}
-        self.last_positions = {}
         self.env = config['SETTINGS']['ENV']
         time.sleep(15)
 
