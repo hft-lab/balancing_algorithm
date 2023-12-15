@@ -5,7 +5,6 @@ import uuid
 import aiohttp
 from tasks.all_tasks import RabbitMqQueues
 from tasks.base_task import BaseTask
-from clients.enums import PositionSideEnum
 import configparser
 import sys
 from core.wrappers import try_exc_regular, try_exc_async
@@ -123,23 +122,13 @@ class Balancing(BaseTask):
 
     @try_exc_async
     async def __get_total_positions(self) -> None:
-        positions = {}
         for coin, exchanges in self.positions.items():
             mark_price = await self.get_mark_price(coin)
-            positions.update({coin: {'long': {'coin': 0, 'usd': 0}, 'short': {'coin': 0, 'usd': 0}}})
-            self.disbalances.update({coin: {}})
+            pos_sum = {'coin': 0, 'usd': 0}
             for exchange, position in exchanges.items():
-                pos_usd = position['amount'] * mark_price
-                if position and position.get('side') == PositionSideEnum.LONG:
-                    positions[coin]['long']['coin'] += position['amount']
-                    positions[coin]['long']['usd'] += pos_usd
-                elif position and position.get('side') == PositionSideEnum.SHORT:
-                    positions[coin]['short']['coin'] += position['amount']
-                    positions[coin]['short']['usd'] += pos_usd
-            disb_coin = positions[coin]['long']['coin'] + positions[coin]['short']['coin']
-            disb_usd = positions[coin]['long']['usd'] + positions[coin]['short']['usd']
-            self.disbalances[coin].update({'coin': disb_coin})  # noqa
-            self.disbalances[coin].update({'usd': disb_usd})
+                pos_sum['coin'] += position['amount']
+                pos_sum['usd'] += position['amount'] * mark_price
+            self.disbalances.update({coin: pos_sum})  # noqa
 
     @try_exc_regular
     def create_positions_message(self):
