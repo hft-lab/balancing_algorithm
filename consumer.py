@@ -1,16 +1,15 @@
-import argparse
 import asyncio
 import logging
-import traceback
 from logging.config import dictConfig
 import time
 import random
+from tasks.base_task import BaseTask
 
 import orjson
 from aio_pika import connect_robust
 from aiohttp.web import Application
 from tasks.all_tasks import QUEUES_TASKS
-from core.wrappers import try_exc_regular, try_exc_async
+from core.wrappers import try_exc_async, try_exc_regular
 
 
 import configparser
@@ -18,11 +17,12 @@ import sys
 config = configparser.ConfigParser()
 config.read(sys.argv[1], "utf-8")
 
+
 dictConfig({'version': 1, 'disable_existing_loggers': False, 'formatters': {
                 'simple': {'format': '[%(asctime)s][%(threadName)s] %(funcName)s: %(message)s'}},
             'handlers': {'console': {'class': 'logging.StreamHandler', 'level': 'DEBUG', 'formatter': 'simple',
                 'stream': 'ext://sys.stdout'}},
-            'loggers': {'': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False}}})
+            'loggers': {'': {'handlers': ['console'], 'level': 'INFO', 'propagate': False}}})
 logger = logging.getLogger(__name__)
 
 
@@ -39,6 +39,7 @@ class Consumer:
         rabbit = config['RABBIT']
         self.rabbit_url = f"amqp://{rabbit['USERNAME']}:{rabbit['PASSWORD']}@{rabbit['HOST']}:{rabbit['PORT']}/"  # noqa
         self.periodic_tasks = []
+        self.base_task = BaseTask()
 
     @try_exc_async
     async def run(self) -> None:
@@ -70,7 +71,7 @@ class Consumer:
         logger.info(f"\n\nReceived message {message.routing_key}")
         if 'logger.periodic' in message.routing_key:
             await message.ack()
-        task = QUEUES_TASKS.get(message.routing_key)(self.app)
+        task = QUEUES_TASKS.get(message.routing_key)(self.app, self.base_task)
         await task.run(orjson.loads(message.body))
         logger.info(f"Success task {message.routing_key}")
         if 'logger.event' in message.routing_key:
@@ -81,21 +82,17 @@ if __name__ == '__main__':
     # parser = argparse.ArgumentParser()
     # parser.add_argument('-q', nargs='?', const=True, dest='queue', default='logger.periodic.get_missed_orders')
     # args = parser.parse_args()
-    import threading
     import multiprocessing
 
+    @try_exc_regular
     def async_process(queue):
         loop = asyncio.get_event_loop()
         asyncio.set_event_loop(loop)
 
         worker = Consumer(loop, queue=queue)
         loop.run_until_complete(worker.run())
-        try:
-            loop.run_forever()
-        except Exception:
-            traceback.print_exc()
-        finally:
-            loop.close()
+        loop.run_forever()
+        loop.close()
 
     queues = config['SETTINGS']['QUEUES'].split(',')
 

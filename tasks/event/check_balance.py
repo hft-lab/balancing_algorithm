@@ -4,15 +4,13 @@ import uuid
 from datetime import datetime
 
 from tasks.all_tasks import RabbitMqQueues
-from tasks.base_task import BaseTask
 from core.wrappers import try_exc_regular, try_exc_async
 
 
-class CheckBalance(BaseTask):
+class CheckBalance:
 
-    def __init__(self, app):
-        super().__init__()
-
+    def __init__(self, app, base_task):
+        self.base_task = base_task
         self.app = app
 
         self.chat_id = None
@@ -36,17 +34,22 @@ class CheckBalance(BaseTask):
 
     @try_exc_async
     async def __check_balances(self) -> None:
-        for client in self.clients.values():
+        for client in self.base_task.clients.values():
             balance_id = uuid.uuid4()
             await self.__save_balance(client, balance_id)
 
-            for symbol in client.get_positions():
-                client.orderbook[symbol] = await client.get_orderbook_by_symbol(symbol)
+            for symbol in client.get_positions().copy():
+                while not client.orderbook.get(symbol):
+                    client.orderbook[symbol] = await client.get_orderbook_by_symbol(symbol)
+                    if not client.orderbook.get(symbol):
+                        time.sleep(5)
                 await self.__save_balance_detalization(symbol, client, balance_id)
 
     @try_exc_async
     async def __save_balance(self, client, balance_id) -> None:
         sum_amount_usd = sum([x.get('amount_usd', 0) for _, x in client.get_positions().items()])
+        balance = client.get_balance()
+        current_margin = round(abs(sum_amount_usd / balance), 1) if balance else 0
         message = {
             'id': balance_id,
             'datetime': datetime.utcnow(),
@@ -60,23 +63,24 @@ class CheckBalance(BaseTask):
             'env': self.env,
             'chat_id': self.chat_id,
             'bot_token': self.telegram_bot,
-            'current_margin': round(abs(sum_amount_usd / client.get_balance()), 1)
+            'current_margin': current_margin
         }
 
-        await self.publish_message(connect=self.app['mq'],
-                                   message=message,
-                                   routing_key=RabbitMqQueues.BALANCES,
-                                   exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.BALANCES),
-                                   queue_name=RabbitMqQueues.BALANCES
-                                   )
+        await self.base_task.publish_message(connect=self.app['mq'],
+                                             message=message,
+                                             routing_key=RabbitMqQueues.BALANCES,
+                                             exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.BALANCES),
+                                             queue_name=RabbitMqQueues.BALANCES
+                                             )
 
     @try_exc_async
     async def __save_balance_detalization(self, symbol, client, parent_id):
-        client_position_by_symbol = client.get_positions()[symbol]
+        position = client.get_positions()[symbol]
         mark_price = (client.get_orderbook(symbol)['asks'][0][0] +
                       client.get_orderbook(symbol)['bids'][0][0]) / 2
-        position_usd = round(client_position_by_symbol['amount'] * mark_price, 1)
+        position_usd = round(position['amount'] * mark_price, 1)
         real_balance = client.get_balance()
+        current_margin = round(abs(position['amount_usd'] / real_balance), 1) if real_balance else 0
         message = {
             'id': uuid.uuid4(),
             'datetime': datetime.utcnow(),
@@ -85,18 +89,19 @@ class CheckBalance(BaseTask):
             'parent_id': parent_id,
             'exchange': client.EXCHANGE_NAME,
             'symbol': symbol,
-            'current_margin': round(abs(client_position_by_symbol['amount_usd'] / real_balance), 1),
-            'position_coin': client_position_by_symbol['amount'],
+            'current_margin': current_margin,
+            'position_coin': position['amount'],
             'position_usd': position_usd,
-            'entry_price': client_position_by_symbol['entry_price'],
+            'entry_price': position['entry_price'],
             'mark_price': mark_price,
             'grand_parent_id': self.parent_id,
             'available_for_buy': round(real_balance * client.leverage - position_usd, 1),
             'available_for_sell': round(real_balance * client.leverage + position_usd, 1)
         }
-        await self.publish_message(connect=self.app['mq'],
-                                   message=message,
-                                   routing_key=RabbitMqQueues.BALANCE_DETALIZATION,
-                                   exchange_name=RabbitMqQueues.get_exchange_name(RabbitMqQueues.BALANCE_DETALIZATION),
-                                   queue_name=RabbitMqQueues.BALANCE_DETALIZATION
-                                   )
+        await self.base_task.publish_message(connect=self.app['mq'],
+                                             message=message,
+                                             routing_key=RabbitMqQueues.BALANCE_DETALIZATION,
+                                             exchange_name=RabbitMqQueues.get_exchange_name(
+                                                 RabbitMqQueues.BALANCE_DETALIZATION),
+                                             queue_name=RabbitMqQueues.BALANCE_DETALIZATION
+                                             )

@@ -1,18 +1,15 @@
 import asyncio
 import time
-import datetime
-import traceback
+from datetime import datetime
 import uuid
 import aiohttp
 from tasks.all_tasks import RabbitMqQueues
 from tasks.base_task import BaseTask
-from clients.enums import PositionSideEnum
-from core.telegram import Telegram, TG_Groups
 import configparser
 import sys
 from core.wrappers import try_exc_regular, try_exc_async
-
-
+import random
+from core.telegram import Telegram, TG_Groups
 
 config = configparser.ConfigParser()
 config.read(sys.argv[1], "utf-8")
@@ -22,17 +19,15 @@ class Balancing(BaseTask):
     __slots__ = 'clients', 'positions', 'total_position', 'disbalances', \
                 'side', 'mq', 'session', 'open_orders', 'app', \
                 'chat_id', 'chat_token', 'env', 'disbalance_id', 'average_price', \
-                'orderbooks' # noqa
+                'orderbooks', 'telegram', 'last_positions' # noqa
 
     def __init__(self):
         super().__init__()
-
+        self.positions = {}
+        self.last_positions = {}
         self.__set_default()
-
-        # for client in self.clients:
-        #     self.clients[client].run_updater()
+        self.telegram = Telegram()
         self.orderbooks = {}
-
         self.env = config['SETTINGS']['ENV']
         time.sleep(15)
 
@@ -45,24 +40,34 @@ class Balancing(BaseTask):
                 for exchange, client in self.clients.items():
                     client.get_position()
                 await self.__close_all_open_orders()
+                await self.update_balances()
                 await self.__get_positions()
-                await self.__get_total_positions()
-                await self.send_positions_message(self.create_positions_message())
-                await self.__balancing_positions(session)
-                await self.mq.close()
+                if self.check_for_empty_positions:
+                    await self.__get_total_positions()
+                    await self.send_positions_message(self.create_positions_message())
+                    await self.__balancing_positions(session)
+                else:
+                    message = f"ALERT: SIGNIFICANT POSITIONS CHANGE. SKIP BALANCING.\n"
+                    message += f"POSES: {self.positions}\nLAST POSES: {self.last_positions}"
+                    self.telegram.send_message(message, TG_Groups.Alerts)
                 print(f"MQ CLOSED")
-
+                await self.mq.close()
                 self.__set_default()
-
                 time.sleep(int(config['SETTINGS']['TIMEOUT']))
 
     @try_exc_regular
     def __set_default(self) -> None:
+        self.last_positions = self.positions
         self.positions = {}
         self.open_orders = {}
         self.total_position = 0
         self.disbalances = {}
         self.disbalance_id = uuid.uuid4()
+
+    @try_exc_async
+    async def update_balances(self):
+        for client_name, client in self.clients.items():
+            client.get_real_balance()
 
     @try_exc_async
     async def __get_positions(self) -> None:
@@ -71,14 +76,22 @@ class Balancing(BaseTask):
                 coin = self.get_coin(symbol)
                 # orderbook = self.orderbooks[client_name][symbol]
                 position.update({'symbol': symbol})
-# 'mark_price': (orderbook['asks'][0][0] + orderbook['bids'][0][0]) / 2,
-# 'top_ask': orderbook['asks'][0][0],
-# 'top_bid': orderbook['bids'][0][0]})
-
                 if not self.positions.get(coin):
                     self.positions.update({coin: {client_name: position}})
                 else:
                     self.positions[coin].update({client_name: position})
+
+    @try_exc_regular
+    def check_for_empty_positions(self):
+        len_new_pos = 0
+        len_old_pos = 0
+        for positions in self.positions.values():
+            len_new_pos += len(list(positions))
+        for positions in self.last_positions.values():
+            len_old_pos += len(list(positions))
+        if abs(len_old_pos - len_new_pos) >= 2:
+            return False
+        return True
 
     @staticmethod
     @try_exc_regular
@@ -93,27 +106,29 @@ class Balancing(BaseTask):
         return coin
 
     @try_exc_async
-    async def __get_total_positions(self) -> None:
-        positions = {}
-        for coin, exchanges in self.positions.items():
-            sample_exch = list(exchanges.keys())[0]
-            symbol = self.positions[coin][sample_exch]['symbol']
-            ob = await self.clients[sample_exch].get_orderbook_by_symbol(symbol)
+    async def get_mark_price(self, coin: str) -> float:
+        clients_list = list(self.clients.values())
+        random_client = clients_list[random.randint(0, len(clients_list) - 1)]
+        if market := random_client.markets.get(coin):
+            ob = await random_client.get_orderbook_by_symbol(market)
             mark_price = (ob['asks'][0][0] + ob['bids'][0][0]) / 2
-            positions.update({coin: {'long': {'coin': 0, 'usd': 0}, 'short': {'coin': 0, 'usd': 0}}})
-            self.disbalances.update({coin: {}})
+            return mark_price
+        else:
+            for client in clients_list:
+                if market := client.markets.get(coin):
+                    ob = await client.get_orderbook_by_symbol(market)
+                    mark_price = (ob['asks'][0][0] + ob['bids'][0][0]) / 2
+                    return mark_price
+
+    @try_exc_async
+    async def __get_total_positions(self) -> None:
+        for coin, exchanges in self.positions.items():
+            mark_price = await self.get_mark_price(coin)
+            pos_sum = {'coin': 0, 'usd': 0}
             for exchange, position in exchanges.items():
-                pos_usd = int(round(position['amount'] * mark_price, 0))
-                if position and position.get('side') == PositionSideEnum.LONG:
-                    positions[coin]['long']['coin'] += position['amount']
-                    positions[coin]['long']['usd'] += pos_usd
-                elif position and position.get('side') == PositionSideEnum.SHORT:
-                    positions[coin]['short']['coin'] += position['amount']
-                    positions[coin]['short']['usd'] += pos_usd
-            disb_coin = positions[coin]['long']['coin'] + positions[coin]['short']['coin']
-            disb_usd = positions[coin]['long']['usd'] + positions[coin]['short']['usd']
-            self.disbalances[coin].update({'coin': disb_coin})  # noqa
-            self.disbalances[coin].update({'usd': disb_usd})
+                pos_sum['coin'] += position['amount']
+                pos_sum['usd'] += position['amount'] * mark_price
+            self.disbalances.update({coin: pos_sum})  # noqa
 
     @try_exc_regular
     def create_positions_message(self):
@@ -182,10 +197,16 @@ class Balancing(BaseTask):
     async def __get_amount_for_all_clients(self, amount, exchanges, coin, side):
         for exchange in exchanges:
             symbol = self.positions[coin][exchange]['symbol']
+            step_size = self.clients[exchange].instruments[symbol]['step_size']
+            size = round(amount / step_size) * step_size
+            if size < self.clients[exchange].instruments[symbol]['min_size']:
+                self.clients[exchange].amount = 0
+                continue
+            self.clients[exchange].amount = size
             position = self.positions[coin][exchange]
             ob = await self.clients[exchange].get_orderbook_by_symbol(symbol)
             price = ob['asks'][3][0] if side == 'buy' else ob['bids'][3][0]
-            self.clients[exchange].fit_sizes(amount, price, position['symbol'])
+            self.clients[exchange].fit_sizes(price, position['symbol'])
 
         # max_amount = max([client.expect_amount_coin for client in self.clients.values()])
         #
@@ -205,6 +226,9 @@ class Balancing(BaseTask):
                 continue
             await self.__get_amount_for_all_clients(abs(disbalance['coin']) / len(exchanges), exchanges, coin, side)
             for exchange in exchanges:
+                if not self.clients[exchange].amount:
+                    exchanges.remove(exchange)
+                    continue
                 symbol = self.positions[coin][exchange]['symbol']
                 client_id = f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"
                 tasks.append(self.clients[exchange].create_order(symbol=symbol,
@@ -268,7 +292,7 @@ class Balancing(BaseTask):
         order_id = uuid.uuid4()
         message = {
             'id': order_id,
-            'datetime': datetime.datetime.utcnow(),
+            'datetime': datetime.utcnow(),
             'ts': int(time.time() * 1000),
             'context': 'balancing',
             'parent_id': self.disbalance_id,
@@ -316,8 +340,8 @@ class Balancing(BaseTask):
     async def save_disbalance(self, coin, client):
         message = {
             'id': self.disbalance_id,
-            'datetime': datetime.datetime.utcnow(),
-            'ts': int(time.time() * 1000),
+            'datetime': datetime.utcnow(),
+            'ts': int(datetime.utcnow().timestamp() * 1000),
             'coin_name': coin,
             'position_coin': self.disbalances[coin]['coin'],
             'position_usd': round(self.disbalances[coin]['usd'], 1),

@@ -6,7 +6,4 @@ venv
 __pycache__
 config.ini
 test.py
-
-arbi.txt
-rates.txt
 /clients
