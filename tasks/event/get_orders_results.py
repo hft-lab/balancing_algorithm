@@ -14,16 +14,13 @@ class GetOrdersResults:
     @try_exc_async
     async def run(self, payload) -> None:
         for data in payload:
-            async with aiohttp.ClientSession() as session:
-                if res := await self.base_task.clients[data['exchange']].get_order_by_id(data['symbol'],
-                                                                                         data['order_ids'],
-                                                                                         session):
-                    print(f'{res=}')
-                    await self.base_task.publish_message(connect=self.app['mq'],
-                                                         message=res,
-                                                         routing_key=RabbitMqQueues.UPDATE_ORDERS,
-                                                         exchange_name=RabbitMqQueues.get_exchange_name(
-                                                             RabbitMqQueues.UPDATE_ORDERS),
-                                                         queue_name=RabbitMqQueues.UPDATE_ORDERS)
+            if res := self.base_task.clients[data['exchange']].get_order_by_id(data['order_ids']):
+                print(f'{res=}')
+                await self.base_task.publish_message(connect=self.app['mq'],
+                                                     message=res,
+                                                     routing_key=RabbitMqQueues.UPDATE_ORDERS,
+                                                     exchange_name=RabbitMqQueues.get_exchange_name(
+                                                         RabbitMqQueues.UPDATE_ORDERS),
+                                                     queue_name=RabbitMqQueues.UPDATE_ORDERS)
 
 
