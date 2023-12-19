@@ -14,7 +14,7 @@ class GetOrdersResults:
     @try_exc_async
     async def run(self, payload) -> None:
         for data in payload:
-            if res := self.base_task.clients[data['exchange']].get_order_by_id(data['order_ids']):
+            if res := self.base_task.clients[data['exchange']].get_order_by_id(data['symbol'], data['order_ids']):
                 print(f'{res=}')
                 await self.base_task.publish_message(connect=self.app['mq'],
                                                      message=res,
