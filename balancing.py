@@ -73,7 +73,7 @@ class Balancing(BaseTask):
     async def __get_positions(self) -> None:
         for client_name, client in self.clients.items():
             for symbol, position in client.get_positions().items():
-                coin = self.get_coin(symbol)
+                coin = [i for i in client.markets.keys() if client.markets[i] == symbol][0]
                 # orderbook = self.orderbooks[client_name][symbol]
                 position.update({'symbol': symbol})
                 if not self.positions.get(coin):
@@ -119,10 +119,6 @@ class Balancing(BaseTask):
                     ob = await client.get_orderbook_by_symbol(market)
                     mark_price = (ob['asks'][0][0] + ob['bids'][0][0]) / 2
                     return mark_price
-            print(f"DID NOT FIND ANY MARKET FOR COIN: {coin}\n IN CLIENTS LIST: {self.clients.keys()}")
-            print('ALL MARKETS:')
-            for exchange, client in self.clients.values():
-                print(exchange, client.markets)
 
     @try_exc_async
     async def __get_total_positions(self) -> None:

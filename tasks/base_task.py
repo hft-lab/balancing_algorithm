@@ -1,10 +1,7 @@
 import orjson
 from aio_pika import Message, ExchangeType, connect_robust
 from clients.core.all_clients import ALL_CLIENTS
-
 from core.wrappers import try_exc_async
-
-
 import configparser
 import sys
 config = configparser.ConfigParser()
