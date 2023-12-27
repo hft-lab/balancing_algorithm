@@ -15,7 +15,7 @@ class GetOrdersResults:
     async def run(self, payload) -> None:
         for data in payload:
             if res := self.base_task.clients[data['exchange']].get_order_by_id(data['symbol'], data['order_ids']):
-                print(f'{res=}')
+                print(f'GET_ORDER_BY_ID {data["exchange"]}: {res=}')
                 await self.base_task.publish_message(connect=self.app['mq'],
                                                      message=res,
                                                      routing_key=RabbitMqQueues.UPDATE_ORDERS,
