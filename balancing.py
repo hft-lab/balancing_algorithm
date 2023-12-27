@@ -119,6 +119,10 @@ class Balancing(BaseTask):
                     ob = await client.get_orderbook_by_symbol(market)
                     mark_price = (ob['asks'][0][0] + ob['bids'][0][0]) / 2
                     return mark_price
+            print(f"DID NOT FIND ANY MARKET FOR COIN: {coin}\n IN CLIENTS LIST: {self.clients.keys()}")
+            print('ALL MARKETS:')
+            for exchange, client in self.clients.values():
+                print(exchange, client.markets)
 
     @try_exc_async
     async def __get_total_positions(self) -> None:
@@ -140,10 +144,9 @@ class Balancing(BaseTask):
                     refactored_positions[exchange]['abs_position'] += abs(int(round(position['amount_usd'])))
                     refactored_positions[exchange]['num_positions'] += 1
                 else:
-                    refactored_positions.update({exchange:
-                                                     {'total_position': int(round(position['amount_usd'])),
-                                                      'abs_position': abs(int(round(position['amount_usd']))),
-                                                      'num_positions': 1}})
+                    refactored_positions.update({exchange: {'total_position': int(round(position['amount_usd'])),
+                                                            'abs_position': abs(int(round(position['amount_usd']))),
+                                                            'num_positions': 1}})
         return self.compose_message(refactored_positions)
 
     @try_exc_regular
