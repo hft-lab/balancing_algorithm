@@ -194,18 +194,21 @@ class Balancing(BaseTask):
 
     @try_exc_async
     async def __get_amount_for_all_clients(self, amount: float, exchanges: list, coin: str, side: str) -> None:
+        stashed_size = 0
         for exchange in exchanges:
-            symbol = self.positions[coin][exchange]['symbol']
+            amount += stashed_size
+            stashed_size = 0
+            symbol = self.clients[exchange].markets[coin]
             step_size = self.clients[exchange].instruments[symbol]['step_size']
             size = round(amount / step_size) * step_size
             if size < self.clients[exchange].instruments[symbol]['min_size']:
+                stashed_size = amount
                 self.clients[exchange].amount = 0
                 continue
             self.clients[exchange].amount = size
-            position = self.positions[coin][exchange]
             ob = await self.clients[exchange].get_orderbook_by_symbol(symbol)
             price = ob['asks'][3][0] if side == 'buy' else ob['bids'][3][0]
-            self.clients[exchange].fit_sizes(price, position['symbol'])
+            self.clients[exchange].fit_sizes(price, symbol)
 
         # max_amount = max([client.expect_amount_coin for client in self.clients.values()])
         #
