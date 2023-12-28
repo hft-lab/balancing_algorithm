@@ -222,12 +222,8 @@ class Balancing(BaseTask):
                 self.disbalance_id = uuid.uuid4()  # noqa
             else:
                 continue
-            start_exchanges = [x for x in self.clients.keys() if x.markets.get(coin)]
-            start_size = abs(disbalance['coin']) / len(exchanges)
-            final_exchanges = [x for x in start_exchanges if x.instruments[x.markets[coin]]['min_size'] >= start_size]
-            final_size = abs(disbalance['coin']) / len(exchanges)
-            await self.__get_amount_for_all_clients(final_size, exchanges, coin, side)
-            for exchange in final_exchanges:
+            exchanges = await self.get_tradable_exchanges(self, disbalance['coin'], coin, side)
+            for exchange in exchanges:
                 print(f"{exchange} BALANCING COIN FOR: {self.clients[exchange].amount}")
                 symbol = self.positions[coin][exchange]['symbol']
                 client_id = f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"
@@ -241,6 +237,18 @@ class Balancing(BaseTask):
                 await self.save_disbalance(coin, self.clients[exchanges[0]])
                 await self.save_balance()
                 await self.send_balancing_message(exchanges, coin, side)
+
+    @try_exc_async
+    async def get_tradable_exchanges(self, size, coin, side):
+        start_exs = {}
+        for ex, client in self.clients.items():
+            if client.markets.get(coin) and client.instruments[client.markets[coin]]['min_size'] >= size:
+                start_exs.update({ex: client})
+        start_size = size / len(list(start_exs.keys()))
+        final_exs = [x for x, y in start_exs.items() if y.instruments[y.markets[coin]]['min_size'] >= start_size]
+        final_size = size / len(final_exs)
+        await self.__get_amount_for_all_clients(final_size, final_exs, coin, side)
+        return final_exs
 
     @try_exc_async
     async def send_balancing_message(self, exchanges: list, coin: str, side: str) -> None:
