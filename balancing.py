@@ -70,7 +70,7 @@ class Balancing(BaseTask):
             client.get_real_balance()
 
     @try_exc_async
-    async def __get_positions(self) -> None:
+    async def __get_positions(self):
         for client_name, client in self.clients.items():
             for symbol, position in client.get_positions().items():
                 coin = [i for i in client.markets.keys() if client.markets[i] == symbol][0]
@@ -95,7 +95,7 @@ class Balancing(BaseTask):
 
     @staticmethod
     @try_exc_regular
-    def get_coin(symbol):
+    def get_coin(symbol: str):
         coin = ''
         if '_' in symbol:
             coin = symbol.split('_')[1].upper().split('USD')[0]
@@ -131,7 +131,7 @@ class Balancing(BaseTask):
             self.disbalances.update({coin: pos_sum})  # noqa
 
     @try_exc_regular
-    def create_positions_message(self):
+    def create_positions_message(self) -> str:
         refactored_positions = {}
         for coin, exchanges in self.positions.items():
             for exchange, position in exchanges.items():
@@ -146,7 +146,7 @@ class Balancing(BaseTask):
         return self.compose_message(refactored_positions)
 
     @try_exc_regular
-    def compose_message(self, refactored_positions):
+    def compose_message(self, refactored_positions: dict) -> str:
         tot_pos = 0
         abs_pos = 0
         message = "    POSITIONS:"
@@ -175,7 +175,7 @@ class Balancing(BaseTask):
         return message
 
     @try_exc_async
-    async def send_positions_message(self, message):
+    async def send_positions_message(self, message: str) -> None:
         send_message = {
             "chat_id": self.chat_id,
             "msg": message,
@@ -193,7 +193,7 @@ class Balancing(BaseTask):
             client.cancel_all_orders()
 
     @try_exc_async
-    async def __get_amount_for_all_clients(self, amount, exchanges, coin, side):
+    async def __get_amount_for_all_clients(self, amount: float, exchanges: list, coin: str, side: str) -> None:
         for exchange in exchanges:
             symbol = self.positions[coin][exchange]['symbol']
             step_size = self.clients[exchange].instruments[symbol]['step_size']
@@ -213,21 +213,22 @@ class Balancing(BaseTask):
         #     client.expect_amount_coin = max_amount
 
     @try_exc_async
-    async def __balancing_positions(self, session) -> None:
+    async def __balancing_positions(self, session: aiohttp.ClientSession) -> None:
         for coin, disbalance in self.disbalances.items():
             tasks = []
             tasks_data = {}
-            exchanges = list(self.positions[coin].keys())
             if abs(disbalance['usd']) > int(config['SETTINGS']['MIN_DISBALANCE']):
                 side = 'sell' if disbalance['usd'] > 0 else 'buy'
                 self.disbalance_id = uuid.uuid4()  # noqa
             else:
                 continue
-            await self.__get_amount_for_all_clients(abs(disbalance['coin']) / len(exchanges), exchanges, coin, side)
-            for exchange in exchanges:
-                if not self.clients[exchange].amount:
-                    exchanges.remove(exchange)
-                    continue
+            start_exchanges = [x for x in self.clients.keys() if x.markets.get(coin)]
+            start_size = abs(disbalance['coin']) / len(exchanges)
+            final_exchanges = [x for x in start_exchanges if x.instruments[x.markets[coin]]['min_size'] >= start_size]
+            final_size = abs(disbalance['coin']) / len(exchanges)
+            await self.__get_amount_for_all_clients(final_size, exchanges, coin, side)
+            for exchange in final_exchanges:
+                print(f"{exchange} BALANCING COIN FOR: {self.clients[exchange].amount}")
                 symbol = self.positions[coin][exchange]['symbol']
                 client_id = f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"
                 tasks.append(self.clients[exchange].create_order(symbol=symbol,
@@ -235,14 +236,14 @@ class Balancing(BaseTask):
                                                                  session=session,
                                                                  client_id=client_id))
                 tasks_data.update({exchange: {'order_place_time': int(time.time() * 1000)}})
-
-            await self.place_and_save_orders(tasks, tasks_data, coin, side)
-            await self.save_disbalance(coin, self.clients[exchanges[0]])
-            await self.save_balance()
-            await self.send_balancing_message(exchanges, coin, side)
+            if tasks:
+                await self.place_and_save_orders(tasks, tasks_data, coin, side)
+                await self.save_disbalance(coin, self.clients[exchanges[0]])
+                await self.save_balance()
+                await self.send_balancing_message(exchanges, coin, side)
 
     @try_exc_async
-    async def send_balancing_message(self, exchanges, coin, side):
+    async def send_balancing_message(self, exchanges: list, coin: str, side: str) -> None:
         message = 'BALANCING PROCEED:\n'
         message += f"COIN: {coin}\n"
         message += f"SIDE: {side}\n"
@@ -260,7 +261,7 @@ class Balancing(BaseTask):
                                    queue_name=RabbitMqQueues.TELEGRAM)
 
     @try_exc_async
-    async def place_and_save_orders(self, tasks, tasks_data, coin, side) -> None:
+    async def place_and_save_orders(self, tasks: list, tasks_data: dict, coin: str, side: str) -> None:
         for res in await asyncio.gather(*tasks, return_exceptions=True):
             exchange = res['exchange_name']
             order_place_time = res['timestamp'] - tasks_data[exchange]['order_place_time']
@@ -287,7 +288,7 @@ class Balancing(BaseTask):
                                    queue_name=RabbitMqQueues.CHECK_BALANCE)
 
     @try_exc_async
-    async def save_orders(self, client, expect_price, amount, order_place_time, coin, side) -> None:
+    async def save_orders(self, client, expect_price: float, amount: float, order_place_time, coin: str, side: str):
         order_id = uuid.uuid4()
         message = {
             'id': order_id,
@@ -336,7 +337,7 @@ class Balancing(BaseTask):
         client.LAST_ORDER_ID = 'default'
 
     @try_exc_async
-    async def save_disbalance(self, coin, client):
+    async def save_disbalance(self, coin: str, client) -> None:
         message = {
             'id': self.disbalance_id,
             'datetime': datetime.utcnow(),
