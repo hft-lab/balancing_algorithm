@@ -222,7 +222,7 @@ class Balancing(BaseTask):
                 self.disbalance_id = uuid.uuid4()  # noqa
             else:
                 continue
-            exchanges = await self.get_tradable_exchanges(self, disbalance['coin'], coin, side)
+            exchanges = await self.get_tradable_exchanges(disbalance['coin'], coin, side)
             for exchange in exchanges:
                 print(f"{exchange} BALANCING COIN FOR: {self.clients[exchange].amount}")
                 symbol = self.positions[coin][exchange]['symbol']
