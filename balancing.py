@@ -197,15 +197,14 @@ class Balancing(BaseTask):
         stashed_size = 0
         final_exchanges = []
         for exchange in exchanges:
-            amount += stashed_size
-            stashed_size = 0
             symbol = self.clients[exchange].markets[coin]
             step_size = self.clients[exchange].instruments[symbol]['step_size']
-            size = round(amount / step_size) * step_size
+            size = round(amount + stashed_size / step_size) * step_size
             if size < self.clients[exchange].instruments[symbol]['min_size']:
-                stashed_size = amount
+                stashed_size += amount
                 self.clients[exchange].amount = 0
                 continue
+            stashed_size = 0
             self.clients[exchange].amount = size
             ob = await self.clients[exchange].get_orderbook_by_symbol(symbol)
             price = ob['asks'][3][0] if side == 'buy' else ob['bids'][3][0]
