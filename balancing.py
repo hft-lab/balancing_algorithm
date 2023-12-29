@@ -230,7 +230,7 @@ class Balancing(BaseTask):
             exchanges = await self.get_tradable_exchanges(disbalance['coin'], coin, side)
             for exchange in exchanges:
                 print(f"{exchange} BALANCING COIN FOR: {self.clients[exchange].amount}")
-                symbol = self.positions[coin][exchange]['symbol']
+                symbol = self.clients[exchange].markets[coin]
                 client_id = f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"
                 tasks.append(self.clients[exchange].create_order(symbol=symbol,
                                                                  side=side,
@@ -245,26 +245,25 @@ class Balancing(BaseTask):
 
     @try_exc_async
     async def get_tradable_exchanges(self, size: float, coin: str, side: str) -> list:
-        start_exs = {}
+        start_exs = []
         for ex, client in self.clients.items():
             if client.markets.get(coin) and client.instruments[client.markets[coin]]['min_size'] <= size:
-                start_exs.update({ex: client})
-        if first_iter := len(list(start_exs.keys())):
-            sz_1 = size / first_iter
-            second_step_exs = [x for x, y in start_exs.items() if y.instruments[y.markets[coin]]['min_size'] <= sz_1]
-            final_size = size / len(second_step_exs)
-            final_exchanges = await self.__get_amount_for_all_clients(final_size, second_step_exs, coin, side)
+                start_exs.append(ex)
+        if first_iter := len(start_exs):
+            final_size = size / first_iter
+            final_exchanges = await self.__get_amount_for_all_clients(final_size, start_exs, coin, side)
             return final_exchanges
         else:
             return []
-
 
     @try_exc_async
     async def send_balancing_message(self, exchanges: list, coin: str, side: str) -> None:
         message = 'BALANCING PROCEED:\n'
         message += f"COIN: {coin}\n"
         message += f"SIDE: {side}\n"
-        message += f"ORDER SIZE PER EXCHANGE, {coin}: {self.clients[exchanges[0]].amount}\n"
+        for ex in exchanges:
+            message += f"{ex} ORDER SIZE, {coin}: {self.clients[ex].amount}\n"
+            message += f"{ex} PRICE: {self.clients[ex].price}"
         message += f"EXCHANGES: {'|'.join(exchanges)}\n"
         send_message = {
             "chat_id": self.chat_id,
