@@ -199,7 +199,7 @@ class Balancing(BaseTask):
         for exchange in exchanges:
             symbol = self.clients[exchange].markets[coin]
             step_size = self.clients[exchange].instruments[symbol]['step_size']
-            size = round(amount + stashed_size / step_size) * step_size
+            size = round((amount + stashed_size) / step_size) * step_size
             if size < self.clients[exchange].instruments[symbol]['min_size']:
                 stashed_size += amount
                 self.clients[exchange].amount = 0
@@ -229,7 +229,7 @@ class Balancing(BaseTask):
                 continue
             exchanges = await self.get_tradable_exchanges(disbalance['coin'], coin, side)
             for exchange in exchanges:
-                print(f"{exchange} BALANCING COIN FOR: {self.clients[exchange].amount}")
+                # print(f"{exchange} BALANCING COIN FOR: {self.clients[exchange].amount}")
                 symbol = self.clients[exchange].markets[coin]
                 client_id = f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"
                 tasks.append(self.clients[exchange].create_order(symbol=symbol,
@@ -263,8 +263,7 @@ class Balancing(BaseTask):
         message += f"SIDE: {side}\n"
         for ex in exchanges:
             message += f"{ex} ORDER SIZE, {coin}: {self.clients[ex].amount}\n"
-            message += f"{ex} PRICE: {self.clients[ex].price}"
-        message += f"EXCHANGES: {'|'.join(exchanges)}\n"
+            message += f"{ex} PRICE: {self.clients[ex].price}\n"
         send_message = {
             "chat_id": self.chat_id,
             "msg": message,
