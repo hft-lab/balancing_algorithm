@@ -193,7 +193,7 @@ class Balancing(BaseTask):
             client.cancel_all_orders()
 
     @try_exc_async
-    async def __get_amount_for_all_clients(self, amount: float, exchanges: list, coin: str, side: str) -> None:
+    async def __get_amount_for_all_clients(self, amount: float, exchanges: list, coin: str, side: str) -> list:
         stashed_size = 0
         final_exchanges = []
         for exchange in exchanges:
@@ -244,16 +244,20 @@ class Balancing(BaseTask):
                 await self.send_balancing_message(exchanges, coin, side)
 
     @try_exc_async
-    async def get_tradable_exchanges(self, size, coin, side):
+    async def get_tradable_exchanges(self, size: float, coin: str, side: str) -> list:
         start_exs = {}
         for ex, client in self.clients.items():
-            if client.markets.get(coin) and client.instruments[client.markets[coin]]['min_size'] >= size:
+            if client.markets.get(coin) and client.instruments[client.markets[coin]]['min_size'] <= size:
                 start_exs.update({ex: client})
-        start_size = size / len(list(start_exs.keys()))
-        second_step_exs = [x for x, y in start_exs.items() if y.instruments[y.markets[coin]]['min_size'] >= start_size]
-        final_size = size / len(second_step_exs)
-        final_exchanges = await self.__get_amount_for_all_clients(final_size, second_step_exs, coin, side)
-        return final_exchanges
+        if first_iter := len(list(start_exs.keys())):
+            sz_1 = size / first_iter
+            second_step_exs = [x for x, y in start_exs.items() if y.instruments[y.markets[coin]]['min_size'] <= sz_1]
+            final_size = size / len(second_step_exs)
+            final_exchanges = await self.__get_amount_for_all_clients(final_size, second_step_exs, coin, side)
+            return final_exchanges
+        else:
+            return []
+
 
     @try_exc_async
     async def send_balancing_message(self, exchanges: list, coin: str, side: str) -> None:
