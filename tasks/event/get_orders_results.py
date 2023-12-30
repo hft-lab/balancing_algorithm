@@ -1,3 +1,5 @@
+import asyncio
+
 import aiohttp
 
 from tasks.all_tasks import RabbitMqQueues
@@ -17,6 +19,7 @@ class GetOrdersResults:
             if not self.base_task.clients.get(data['exchange']):
                 continue
             if res := self.base_task.clients[data['exchange']].get_order_by_id(data['symbol'], data['order_ids']):
+                await asyncio.sleep(2)
                 print(f'GET_ORDER_BY_ID {data["exchange"]}: {res=}')
                 await self.base_task.publish_message(connect=self.app['mq'],
                                                      message=res,
