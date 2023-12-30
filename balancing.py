@@ -316,7 +316,7 @@ class Balancing(BaseTask):
             'status': 'Processing',
             'exchange': client.EXCHANGE_NAME,
             'side': side,
-            'symbol': self.positions[coin][client.EXCHANGE_NAME]['symbol'],
+            'symbol': client.markets[coin],
             'expect_price': client.price,
             'expect_amount_coin': client.amount,
             'expect_amount_usd': client.amount * client.price,
