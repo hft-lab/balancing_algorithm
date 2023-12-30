@@ -227,7 +227,7 @@ class Balancing(BaseTask):
                 self.disbalance_id = uuid.uuid4()  # noqa
             else:
                 continue
-            exchanges = await self.get_tradable_exchanges(disbalance['coin'], coin, side)
+            exchanges = await self.get_tradable_exchanges(abs(disbalance['coin']), coin, side)
             for exchange in exchanges:
                 print(f"{exchange} BALANCING COIN FOR: {self.clients[exchange].amount}")
                 symbol = self.clients[exchange].markets[coin]
@@ -247,7 +247,7 @@ class Balancing(BaseTask):
     async def get_tradable_exchanges(self, size: float, coin: str, side: str) -> list:
         start_exs = []
         for ex, client in self.clients.items():
-            if client.markets.get(coin) and client.instruments[client.markets[coin]]['min_size'] <= abs(size):
+            if client.markets.get(coin) and client.instruments[client.markets[coin]]['min_size'] <= size:
                 start_exs.append(ex)
         if first_iter := len(start_exs):
             final_size = size / first_iter
