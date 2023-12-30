@@ -200,7 +200,7 @@ class Balancing(BaseTask):
             symbol = self.clients[exchange].markets[coin]
             step_size = self.clients[exchange].instruments[symbol]['step_size']
             size = round((amount + stashed_size) / step_size) * step_size
-            if size < self.clients[exchange].instruments[symbol]['min_size']:
+            if abs(size) < self.clients[exchange].instruments[symbol]['min_size']:
                 stashed_size += amount
                 self.clients[exchange].amount = 0
                 continue
@@ -229,7 +229,7 @@ class Balancing(BaseTask):
                 continue
             exchanges = await self.get_tradable_exchanges(disbalance['coin'], coin, side)
             for exchange in exchanges:
-                # print(f"{exchange} BALANCING COIN FOR: {self.clients[exchange].amount}")
+                print(f"{exchange} BALANCING COIN FOR: {self.clients[exchange].amount}")
                 symbol = self.clients[exchange].markets[coin]
                 client_id = f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"
                 tasks.append(self.clients[exchange].create_order(symbol=symbol,
@@ -247,7 +247,7 @@ class Balancing(BaseTask):
     async def get_tradable_exchanges(self, size: float, coin: str, side: str) -> list:
         start_exs = []
         for ex, client in self.clients.items():
-            if client.markets.get(coin) and client.instruments[client.markets[coin]]['min_size'] <= size:
+            if client.markets.get(coin) and client.instruments[client.markets[coin]]['min_size'] <= abs(size):
                 start_exs.append(ex)
         if first_iter := len(start_exs):
             final_size = size / first_iter
