@@ -223,7 +223,7 @@ class Balancing(BaseTask):
             tasks = []
             tasks_data = {}
             if abs(disbalance['usd']) > int(config['SETTINGS']['MIN_DISBALANCE']):
-                side = 'sell' if disbalance['usd'] < 0 else 'buy'
+                side = 'sell' if disbalance['usd'] > 0 else 'buy'
                 self.disbalance_id = uuid.uuid4()  # noqa
             else:
                 continue
