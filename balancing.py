@@ -111,7 +111,7 @@ class Balancing(BaseTask):
         random_client = clients_list[random.randint(0, len(clients_list) - 1)]
         if market := random_client.markets.get(coin):
             ob = await random_client.get_orderbook_by_symbol(market)
-            if ob.get('asks') and ob.get('bids'):
+            if ob and ob.get('asks') and ob.get('bids'):
                 random_client.orderbook[market] = ob
             else:
                 ob = random_client.get_orderbook(market)
@@ -121,7 +121,7 @@ class Balancing(BaseTask):
             for client in clients_list:
                 if market := client.markets.get(coin):
                     ob = await client.get_orderbook_by_symbol(market)
-                    if ob.get('asks') and ob.get('bids'):
+                    if ob and ob.get('asks') and ob.get('bids'):
                         client.orderbook[market] = ob
                     else:
                         ob = client.get_orderbook(market)
