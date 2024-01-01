@@ -111,12 +111,20 @@ class Balancing(BaseTask):
         random_client = clients_list[random.randint(0, len(clients_list) - 1)]
         if market := random_client.markets.get(coin):
             ob = await random_client.get_orderbook_by_symbol(market)
+            if ob.get('asks') and ob.get('bids'):
+                random_client.orderbook[market] = ob
+            else:
+                ob = random_client.get_orderbook(market)
             mark_price = (ob['asks'][0][0] + ob['bids'][0][0]) / 2
             return mark_price
         else:
             for client in clients_list:
                 if market := client.markets.get(coin):
                     ob = await client.get_orderbook_by_symbol(market)
+                    if ob.get('asks') and ob.get('bids'):
+                        client.orderbook[market] = ob
+                    else:
+                        ob = client.get_orderbook(market)
                     mark_price = (ob['asks'][0][0] + ob['bids'][0][0]) / 2
                     return mark_price
 
@@ -207,6 +215,7 @@ class Balancing(BaseTask):
             stashed_size = 0
             self.clients[exchange].amount = size
             ob = await self.clients[exchange].get_orderbook_by_symbol(symbol)
+            self.clients[exchange].orderbook[symbol] = ob
             price = ob['asks'][3][0] if side == 'buy' else ob['bids'][3][0]
             self.clients[exchange].fit_sizes(price, symbol)
             final_exchanges.append(exchange)
