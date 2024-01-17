@@ -16,11 +16,11 @@ class BaseTask:
 
     def __init__(self):
         self.mq = None
-        self.chat_id = config['TELEGRAM']['CHAT_ID']
+        self.chat_id = int(config['TELEGRAM']['CHAT_ID'])
         self.chat_token = config['TELEGRAM']['TOKEN']
-        self.alert_id = config['TELEGRAM']['ALERT_CHAT_ID']
+        self.alert_id = int(config['TELEGRAM']['ALERT_CHAT_ID'])
         self.alert_token = config['TELEGRAM']['ALERT_BOT_TOKEN']
-        self.debug_id = config['TELEGRAM']['DIMA_DEBUG_CHAT_ID']
+        self.debug_id = int(config['TELEGRAM']['DIMA_DEBUG_CHAT_ID'])
         self.debug_token = config['TELEGRAM']['DIMA_DEBUG_BOT_TOKEN']
         self.exchanges = config['SETTINGS']['EXCHANGES'].split(',')
         self.clients = {}

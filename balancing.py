@@ -201,25 +201,35 @@ class Balancing(BaseTask):
             client.cancel_all_orders()
 
     @try_exc_async
-    async def __get_amount_for_all_clients(self, amount: float, exchanges: list, coin: str, side: str) -> list:
-        stashed_size = 0
-        final_exchanges = []
+    async def get_top_price_exchange(self, amount: float, exchanges: list, coin: str, side: str) -> list:
+        top_exchange = None
+        best_price = None
         for exchange in exchanges:
             symbol = self.clients[exchange].markets[coin]
-            step_size = self.clients[exchange].instruments[symbol]['step_size']
-            size = round((amount + stashed_size) / step_size) * step_size
-            if abs(size) < self.clients[exchange].instruments[symbol]['min_size']:
-                stashed_size += amount
-                self.clients[exchange].amount = 0
-                continue
-            stashed_size = 0
-            self.clients[exchange].amount = size
             ob = await self.clients[exchange].get_orderbook_by_symbol(symbol)
             self.clients[exchange].orderbook[symbol] = ob
-            price = ob['asks'][3][0] if side == 'buy' else ob['bids'][3][0]
-            self.clients[exchange].fit_sizes(price, symbol)
-            final_exchanges.append(exchange)
-        return final_exchanges
+            if side == 'buy':
+                if best_price:
+                    if ob['asks'][0][0] < best_price:
+                        top_exchange = exchange
+                        best_price = ob['asks'][0][0]
+                else:
+                    top_exchange = exchange
+                    best_price = ob['asks'][0][0]
+            else:
+                if best_price:
+                    if ob['bids'][0][0] > best_price:
+                        top_exchange = exchange
+                        best_price = ob['bids'][0][0]
+                else:
+                    top_exchange = exchange
+                    best_price = ob['bids'][0][0]
+        symbol = self.clients[top_exchange].markets[coin]
+        step_size = self.clients[top_exchange].instruments[symbol]['step_size']
+        size = round(amount / step_size) * step_size
+        self.clients[top_exchange].amount = size
+        self.clients[top_exchange].fit_sizes(best_price, symbol)
+        return top_exchange
 
         # max_amount = max([client.expect_amount_coin for client in self.clients.values()])
         #
@@ -236,34 +246,26 @@ class Balancing(BaseTask):
                 self.disbalance_id = uuid.uuid4()  # noqa
             else:
                 continue
-            exchanges = await self.get_tradable_exchanges(abs(disbalance['coin']), coin, side)
-            for exchange in exchanges:
-                print(f"{exchange} BALANCING COIN FOR: {self.clients[exchange].amount}")
-                symbol = self.clients[exchange].markets[coin]
-                client_id = f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"
-                tasks.append(self.clients[exchange].create_order(symbol=symbol,
-                                                                 side=side,
-                                                                 session=session,
-                                                                 client_id=client_id))
-                tasks_data.update({exchange: {'order_place_time': int(time.time() * 1000)}})
+            exchange = await self.get_exchange_and_price(abs(disbalance['coin']), coin, side)
+            print(f"{exchange} BALANCING COIN FOR: {self.clients[exchange].amount}")
+            symbol = self.clients[exchange].markets[coin]
+            client_id = f"api_balancing_{str(uuid.uuid4()).replace('-', '')[:20]}"
+            result = await self.clients[exchange].create_order(symbol=symbol, side=side, session=session, client_id=client_id)
+            tasks_data.update({exchange: {'order_place_time': int(time.time() * 1000)}})
             if tasks:
-                await self.place_and_save_orders(tasks, tasks_data, coin, side)
+                await self.place_and_save_orders(result, tasks_data, coin, side)
                 await self.save_disbalance(coin, self.clients[exchanges[0]])
                 await self.save_balance()
                 await self.send_balancing_message(exchanges, coin, side)
 
     @try_exc_async
-    async def get_tradable_exchanges(self, size: float, coin: str, side: str) -> list:
-        start_exs = []
+    async def get_exchange_and_price(self, size: float, coin: str, side: str) -> list:
+        exchanges = []
         for ex, client in self.clients.items():
             if client.markets.get(coin) and client.instruments[client.markets[coin]]['min_size'] <= size:
-                start_exs.append(ex)
-        if first_iter := len(start_exs):
-            final_size = size / first_iter
-            final_exchanges = await self.__get_amount_for_all_clients(final_size, start_exs, coin, side)
-            return final_exchanges
-        else:
-            return []
+                exchanges.append(ex)
+        best_exchange = await self.get_top_price_exchange(size, exchanges, coin, side)
+        return best_exchange
 
     @try_exc_async
     async def send_balancing_message(self, exchanges: list, coin: str, side: str) -> None:
@@ -285,15 +287,14 @@ class Balancing(BaseTask):
                                    queue_name=RabbitMqQueues.TELEGRAM)
 
     @try_exc_async
-    async def place_and_save_orders(self, tasks: list, tasks_data: dict, coin: str, side: str) -> None:
-        for res in await asyncio.gather(*tasks, return_exceptions=True):
-            exchange = res['exchange_name']
-            order_place_time = res['timestamp'] - tasks_data[exchange]['order_place_time']
-            await self.save_orders(self.clients[exchange],
-                                   self.clients[exchange].price,
-                                   self.clients[exchange].amount,
-                                   order_place_time,
-                                   coin, side)
+    async def place_and_save_orders(self, res: list, tasks_data: dict, coin: str, side: str) -> None:
+        exchange = res['exchange_name']
+        order_place_time = res['timestamp'] - tasks_data[exchange]['order_place_time']
+        await self.save_orders(self.clients[exchange],
+                               self.clients[exchange].price,
+                               self.clients[exchange].amount,
+                               order_place_time,
+                               coin, side)
 
     @try_exc_async
     async def save_balance(self) -> None:
