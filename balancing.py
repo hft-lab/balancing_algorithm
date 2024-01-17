@@ -254,12 +254,12 @@ class Balancing(BaseTask):
             tasks_data.update({exchange: {'order_place_time': int(time.time() * 1000)}})
             if tasks:
                 await self.place_and_save_orders(result, tasks_data, coin, side)
-                await self.save_disbalance(coin, self.clients[exchanges[0]])
+                await self.save_disbalance(coin, self.clients[exchange])
                 await self.save_balance()
-                await self.send_balancing_message(exchanges, coin, side)
+                await self.send_balancing_message(exchange, coin, side)
 
     @try_exc_async
-    async def get_exchange_and_price(self, size: float, coin: str, side: str) -> list:
+    async def get_exchange_and_price(self, size: float, coin: str, side: str) -> str:
         exchanges = []
         for ex, client in self.clients.items():
             if client.markets.get(coin) and client.instruments[client.markets[coin]]['min_size'] <= size:
@@ -268,13 +268,12 @@ class Balancing(BaseTask):
         return best_exchange
 
     @try_exc_async
-    async def send_balancing_message(self, exchanges: list, coin: str, side: str) -> None:
+    async def send_balancing_message(self, exchange: str, coin: str, side: str) -> None:
         message = 'BALANCING PROCEED:\n'
         message += f"COIN: {coin}\n"
         message += f"SIDE: {side}\n"
-        for ex in exchanges:
-            message += f"{ex} ORDER SIZE, {coin}: {self.clients[ex].amount}\n"
-            message += f"{ex} PRICE: {self.clients[ex].price}\n"
+        message += f"{exchange} ORDER SIZE, {coin}: {self.clients[exchange].amount}\n"
+        message += f"{exchange} PRICE: {self.clients[exchange].price}\n"
         send_message = {
             "chat_id": self.chat_id,
             "msg": message,
