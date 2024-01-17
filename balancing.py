@@ -286,7 +286,7 @@ class Balancing(BaseTask):
                                    queue_name=RabbitMqQueues.TELEGRAM)
 
     @try_exc_async
-    async def place_and_save_orders(self, res: list, tasks_data: dict, coin: str, side: str) -> None:
+    async def place_and_save_orders(self, res: dict, tasks_data: dict, coin: str, side: str) -> None:
         exchange = res['exchange_name']
         order_place_time = res['timestamp'] - tasks_data[exchange]['order_place_time']
         await self.save_orders(self.clients[exchange],
